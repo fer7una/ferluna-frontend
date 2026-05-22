@@ -1,0 +1,27 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Fernando Luna crystal avatar</title>
+  <desc id="desc">Abstract crystal sphere with Fernando Luna initials.</desc>
+  <rect width="640" height="640" rx="320" fill="#F7FCFF"/>
+  <circle cx="320" cy="320" r="286" fill="url(#crystal)"/>
+  <circle cx="320" cy="320" r="252" stroke="url(#ring)" stroke-width="3"/>
+  <path d="M121 314C178 184 282 121 434 125C347 152 279 216 231 317C193 397 153 441 96 450C99 405 107 360 121 314Z" fill="white" fill-opacity=".45"/>
+  <path d="M438 164C520 210 559 287 548 394C515 320 461 275 386 258C327 245 295 221 290 185C337 162 386 155 438 164Z" fill="#BFF8FF" fill-opacity=".52"/>
+  <path d="M189 463C235 501 289 521 351 519C408 517 458 496 501 456C465 526 407 564 328 570C264 568 212 544 171 498L189 463Z" fill="#FFE7A3" fill-opacity=".42"/>
+  <text x="320" y="356" text-anchor="middle" fill="#19324A" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="132" font-weight="800" letter-spacing="8">FL</text>
+  <circle cx="222" cy="202" r="28" fill="white" fill-opacity=".72"/>
+  <circle cx="433" cy="432" r="18" fill="#FF8E7E" fill-opacity=".65"/>
+  <defs>
+    <radialGradient id="crystal" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(228 161) rotate(55) scale(482)">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset=".31" stop-color="#CFF8FF"/>
+      <stop offset=".6" stop-color="#9FE7E3"/>
+      <stop offset=".82" stop-color="#FFC7A8"/>
+      <stop offset="1" stop-color="#7FC3FF"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="118" y1="152" x2="547" y2="493" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset=".48" stop-color="#68D8D6"/>
+      <stop offset="1" stop-color="#1C5D99"/>
+    </linearGradient>
+  </defs>
+</svg>
