@@ -1,0 +1,47 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Realistic textured moon favicon</title>
+  <desc id="desc">A full moon with crater and surface texture.</desc>
+  <defs>
+    <radialGradient id="moonLight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(23 18) rotate(50) scale(45)">
+      <stop stop-color="#fffdf2"/>
+      <stop offset=".35" stop-color="#d8d5c8"/>
+      <stop offset=".7" stop-color="#9b9c98"/>
+      <stop offset="1" stop-color="#5f625f"/>
+    </radialGradient>
+    <radialGradient id="rim" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(24 18) scale(31)">
+      <stop stop-color="#ffffff" stop-opacity=".9"/>
+      <stop offset=".55" stop-color="#ffffff" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#151817" stop-opacity=".65"/>
+    </radialGradient>
+    <radialGradient id="crater" cx="0" cy="0" r="1">
+      <stop stop-color="#6c6e6a"/>
+      <stop offset=".54" stop-color="#a8a89f"/>
+      <stop offset=".76" stop-color="#d9d4c2"/>
+      <stop offset="1" stop-color="#70736e"/>
+    </radialGradient>
+    <filter id="surface" x="2" y="2" width="60" height="60" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="4" seed="18" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values=".34 0 0 0 0 0 .34 0 0 0 0 0 .34 0 0 0 0 0 .32 0" result="grain"/>
+      <feBlend in="SourceGraphic" in2="grain" mode="multiply"/>
+    </filter>
+    <clipPath id="disc">
+      <circle cx="32" cy="32" r="28"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#disc)">
+    <circle cx="32" cy="32" r="28" fill="url(#moonLight)" filter="url(#surface)"/>
+    <path d="M11 28c6-12 17-18 31-17-9 4-16 11-20 21-3 8-7 13-14 15 0-7 1-13 3-19Z" fill="#fff7dc" fill-opacity=".22"/>
+    <path d="M45 14c9 6 13 15 10 27-3-8-9-13-18-16-7-2-11-5-11-10 6-3 12-3 19-1Z" fill="#6b6f6d" fill-opacity=".26"/>
+    <circle cx="23" cy="21" r="4.3" fill="url(#crater)" opacity=".68"/>
+    <circle cx="41" cy="23" r="3.2" fill="url(#crater)" opacity=".62"/>
+    <circle cx="29" cy="36" r="5.5" fill="url(#crater)" opacity=".55"/>
+    <circle cx="45" cy="43" r="4.7" fill="url(#crater)" opacity=".58"/>
+    <circle cx="18" cy="44" r="3.2" fill="url(#crater)" opacity=".5"/>
+    <circle cx="36" cy="49" r="2" fill="#6d706b" opacity=".46"/>
+    <circle cx="16" cy="30" r="2.2" fill="#747771" opacity=".45"/>
+    <circle cx="51" cy="32" r="2.5" fill="#767970" opacity=".42"/>
+    <circle cx="32" cy="32" r="28" fill="url(#rim)"/>
+  </g>
+  <circle cx="32" cy="32" r="28.3" stroke="#f8f0ce" stroke-opacity=".52" stroke-width="1.4"/>
+</svg>

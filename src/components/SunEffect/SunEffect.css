@@ -1,0 +1,47 @@
+.sun-effect {
+  --sun-core-color: #fff4b0;
+  --sun-plasma-color: #ff8a00;
+  --sun-corona-color: #ff3d00;
+  --sun-shadow-color: #160000;
+  aspect-ratio: 1;
+  contain: layout paint style;
+  display: block;
+  isolation: isolate;
+  min-height: 160px;
+  pointer-events: none;
+  position: relative;
+  width: 100%;
+}
+
+.sun-effect--interactive {
+  pointer-events: auto;
+}
+
+.sun-effect__canvas {
+  background: transparent;
+  height: 100%;
+  inset: 0;
+  position: absolute !important;
+  width: 100%;
+}
+
+.sun-effect__static {
+  background:
+    radial-gradient(circle at 48% 44%, #fff 0 8%, var(--sun-core-color) 14%, transparent 26%),
+    radial-gradient(circle, var(--sun-plasma-color) 0 42%, var(--sun-shadow-color) 74%),
+    radial-gradient(circle, color-mix(in srgb, var(--sun-corona-color) 72%, transparent) 0 48%, transparent 74%);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 34px var(--sun-corona-color));
+  inset: 20%;
+  position: absolute;
+}
+
+.sun-effect--reduced-motion {
+  filter: saturate(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sun-effect {
+    pointer-events: none;
+  }
+}
