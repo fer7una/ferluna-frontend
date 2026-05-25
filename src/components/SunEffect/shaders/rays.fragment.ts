@@ -7,8 +7,10 @@ uniform float uRayStrength;
 uniform float uRayLength;
 uniform float uSunRadius;
 uniform float uHoverIntensity;
+uniform float uCenterIntensity;
 uniform float uCursorVelocity;
 uniform float uShaderComplexity;
+uniform vec2 uMouse;
 uniform vec3 uCoreColor;
 uniform vec3 uCoronaColor;
 
@@ -94,6 +96,9 @@ void main() {
 
   float edge = exp(-pow((radius - uSunRadius) * 24.0, 2.0));
   float outerFade = 1.0 - smoothstep(uSunRadius * 2.05, uSunRadius * 2.65, radius);
+  float fullRayRadial = smoothstep(uSunRadius * 0.94, uSunRadius * 1.18, radius);
+  float fullRayTexture = 0.64 + angularNoise(angle, 42.0, time * 1.6) * 0.36;
+  float fullRayField = fullRayRadial * fullRayTexture * uCenterIntensity;
   float filamentMask = 0.0;
 
   filamentMask += solarFilament(uv, radius, angle, 3.0, time);
@@ -112,16 +117,16 @@ void main() {
   float softCoronaFlow = edge * (0.16 + angularNoise(angle, 20.0, time * 1.4) * 0.2);
   float localFlux = rimFlux(radius, angle, time) * (0.16 + (1.0 - uHoverIntensity) * 0.12);
 
-  float hoverBoost = 1.0 + uHoverIntensity * 0.55 + uCursorVelocity * 0.12;
-  float energy = (filamentMask * 0.58 + localFlux + softCoronaFlow + discharge * hoverBoost);
+  float hoverBoost = 1.0 + uHoverIntensity * 0.78 + uCursorVelocity * 0.12;
+  float energy = (filamentMask * 0.58 + fullRayField * 0.72 + localFlux + softCoronaFlow + discharge * hoverBoost);
   energy *= outerFade * uRayStrength * uIntensity;
-  float alpha = energy * (0.2 + uHoverIntensity * 0.5);
+  float alpha = energy * (0.18 + uHoverIntensity * 0.78);
 
   vec3 ember = mix(uCoronaColor, uCoreColor, 0.34);
   vec3 color = mix(uCoronaColor * 0.62, ember, clamp(edge, 0.0, 1.0));
   color = mix(color, vec3(1.0, 0.12, 0.02), clamp(discharge * 1.6, 0.0, 1.0));
   color += uCoreColor * discharge * 0.18;
 
-  gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.44));
+  gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.58));
 }
 `;

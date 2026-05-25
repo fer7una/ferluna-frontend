@@ -25,10 +25,14 @@
   --orb-center-y: 50dvh;
   --orb-scale: 1;
   --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
-  /* Section tabs: orbital radius in hub mode, stacked anchor in section mode. */
-  --tab-hub-radius: min(33vmin, 318px);
+  /* Section tabs: inner orbit for stable sections, outer orbit for momentary items. */
+  --tab-hub-radius: min(24vmin, 224px);
+  --tab-hub-ring-size: min(48vmin, 448px);
   --tab-orbit-duration: 34s;
   --tab-orbit-radius: var(--tab-hub-radius);
+  --moment-tab-hub-radius: min(38vmin, 342px);
+  --moment-tab-ring-size: min(76vmin, 684px);
+  --moment-tab-orbit-duration: 18s;
   --tab-corner-x: 132px;
   --tab-corner-base: 226px;
   --tab-corner-step: 60px;
@@ -79,6 +83,11 @@ a {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+a[href],
+button:not(:disabled) {
+  cursor: pointer;
 }
 
 button:focus-visible,
@@ -367,16 +376,17 @@ h1 {
 }
 
 .orbit-ring-a {
-  animation: rotate-slow 28s linear infinite;
-  height: 78%;
-  width: 78%;
+  animation: rotate-slow 24s linear infinite reverse;
+  border-color: rgba(255, 127, 102, 0.18);
+  height: var(--moment-tab-ring-size);
+  width: var(--moment-tab-ring-size);
 }
 
 .orbit-ring-b {
-  animation: rotate-slow 38s linear infinite reverse;
-  height: 58%;
+  animation: rotate-slow 32s linear infinite;
+  height: var(--tab-hub-ring-size);
   transform: rotate(18deg);
-  width: 58%;
+  width: var(--tab-hub-ring-size);
 }
 
 .energy-orb-wrap {
@@ -425,8 +435,12 @@ h1 {
   pointer-events: none;
 }
 
-.section-tab-orbit {
-  animation: tab-orbit var(--tab-orbit-duration) linear infinite;
+.momentary-tabs {
+  pointer-events: none;
+}
+
+.section-tab-orbit,
+.moment-tab-orbit {
   height: 0;
   left: var(--orb-center-x);
   pointer-events: none;
@@ -441,50 +455,164 @@ h1 {
   z-index: 7;
 }
 
+.section-tab-orbit {
+  animation: tab-orbit var(--tab-orbit-duration) linear infinite;
+}
+
+.moment-tab-orbit {
+  animation: tab-orbit var(--moment-tab-orbit-duration) linear infinite;
+  transition:
+    left 860ms var(--ease-glide),
+    top 860ms var(--ease-glide),
+    opacity 260ms ease;
+  z-index: 6;
+}
+
 /* Carries the orbital radius, on its own element so it can transition (collapse
    to 0) without fighting the rotate animation that owns the orbit's transform. */
-.section-tab-radius {
+.section-tab-radius,
+.moment-tab-radius {
   height: 0;
   position: absolute;
-  transform: translateX(var(--tab-orbit-radius));
   transition: transform 860ms var(--ease-glide);
   width: 0;
   will-change: transform;
 }
 
+.section-tab-radius {
+  transform: translateX(var(--tab-orbit-radius));
+}
+
+.moment-tab-radius {
+  transform: translateX(var(--moment-tab-hub-radius));
+}
+
 /* The wrapper orbits; this layer counter-rotates so tabs stay horizontal. */
-.section-tab-level {
+.section-tab-level,
+.moment-tab-level {
   position: absolute;
   transform: rotate(var(--orbit-counter-angle));
-  animation: tab-counter-orbit var(--tab-orbit-duration) linear infinite;
   transform-origin: 0 0;
   will-change: transform;
 }
 
-.section-tab {
+.section-tab-level {
+  animation: tab-counter-orbit var(--tab-orbit-duration) linear infinite;
+}
+
+.moment-tab-level {
+  animation: tab-counter-orbit var(--moment-tab-orbit-duration) linear infinite;
+}
+
+.section-tab,
+.moment-tab {
   align-items: center;
-  background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(23, 50, 77, 0.12);
   border-radius: 999px;
-  box-shadow: 0 16px 40px rgba(30, 93, 118, 0.16);
   color: var(--ink);
-  cursor: pointer;
   display: inline-flex;
   font: inherit;
   font-weight: 850;
   gap: 9px;
-  min-height: 54px;
-  min-width: 134px;
-  padding: 0 17px;
+  justify-content: center;
+  line-height: 1;
   pointer-events: auto;
   position: absolute;
+  overflow: hidden;
   transform: translate(-50%, -50%);
   transition:
     border-color 200ms ease,
     background 200ms ease,
-    box-shadow 200ms ease;
+    box-shadow 200ms ease,
+    min-width 240ms ease,
+    padding 240ms ease,
+    width 240ms ease;
   white-space: nowrap;
   z-index: 7;
+}
+
+.section-tab {
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 16px 40px rgba(30, 93, 118, 0.16);
+  cursor: pointer;
+  min-height: 54px;
+  min-width: 134px;
+  padding: 0 17px;
+}
+
+.moment-tab {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 232, 0.82)),
+    rgba(255, 255, 255, 0.86);
+  border-color: rgba(255, 127, 102, 0.2);
+  box-shadow: 0 14px 34px rgba(255, 127, 102, 0.14);
+  color: #704132;
+  cursor: default;
+  font-size: 0.84rem;
+  min-height: 46px;
+  min-width: 46px;
+  padding: 0;
+  width: 46px;
+}
+
+.moment-tab svg {
+  flex: 0 0 auto;
+  color: var(--coral);
+}
+
+.section-tab svg,
+.moment-tab svg {
+  display: block;
+}
+
+.app-shell[data-orb-mode="hub"] .section-tab {
+  gap: 0;
+  min-width: 54px;
+  padding: 0;
+  width: 54px;
+}
+
+.moment-tab {
+  gap: 0;
+}
+
+.app-shell[data-orb-mode="hub"] .section-tab svg,
+.moment-tab svg {
+  flex: 0 0 auto;
+}
+
+.app-shell[data-orb-mode="hub"] .section-tab span,
+.moment-tab span {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-width 220ms ease,
+    opacity 160ms ease;
+}
+
+.app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover,
+.app-shell[data-orb-mode="hub"] .section-tab:focus-visible {
+  gap: 9px;
+  justify-content: flex-start;
+  min-width: 142px;
+  padding: 0 17px;
+  width: 142px;
+}
+
+.moment-tab.is-pointer-hover {
+  gap: 9px;
+  justify-content: flex-start;
+  min-width: 150px;
+  padding: 0 14px;
+  width: 150px;
+}
+
+.app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover span,
+.app-shell[data-orb-mode="hub"] .section-tab:focus-visible span,
+.moment-tab.is-pointer-hover span {
+  max-width: 120px;
+  opacity: 1;
 }
 
 /* Section mode: each wrapper glides to its stacked corner slot (left/top) while
@@ -500,6 +628,10 @@ h1 {
 
 .app-shell[data-orb-mode="section"] .section-tab-radius {
   transform: translateX(0);
+}
+
+.app-shell[data-orb-mode="section"] .moment-tab-orbit {
+  opacity: 0;
 }
 
 .section-tab:hover {
@@ -537,20 +669,23 @@ h1 {
 
 .section-panel.is-open {
   opacity: 1;
+  overflow: hidden;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   overscroll-behavior: contain;
   pointer-events: auto;
-  touch-action: pan-y;
+  touch-action: none;
   -webkit-overflow-scrolling: touch;
 }
 
 .section-panel-scroll {
-  min-height: 100dvh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   padding:
-    clamp(106px, 16vh, 154px)
-    max(clamp(18px, 5vw, 76px), clamp(156px, 18vw, 246px))
-    clamp(168px, 24vh, 280px);
+    clamp(86px, 10vh, 102px)
+    clamp(20px, 4vw, 36px)
+    clamp(34px, 5vh, 52px);
   transform: translateY(28px);
   transition: transform 540ms var(--ease-glide);
 }
@@ -585,10 +720,13 @@ h1 {
 .standard-section-view {
   --section-accent: var(--teal);
   display: grid;
-  gap: clamp(18px, 3vw, 30px);
+  gap: clamp(12px, 2vh, 18px);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
   margin: 0 auto;
   max-width: 1180px;
   min-width: 0;
+  overflow: hidden;
   width: 100%;
 }
 
@@ -608,9 +746,9 @@ h1 {
   border-bottom: 1px solid var(--line);
   border-top: 1px solid var(--line);
   display: grid;
-  gap: clamp(14px, 2vw, 22px);
+  gap: clamp(8px, 1.2vw, 14px);
   min-width: 0;
-  padding: clamp(18px, 3vw, 30px) 0;
+  padding: clamp(10px, 1.6vw, 18px) 0;
   position: relative;
 }
 
@@ -618,10 +756,10 @@ h1 {
   background: var(--section-accent);
   border-radius: 999px;
   content: "";
-  height: calc(100% - 28px);
+  height: calc(100% - 18px);
   left: 0;
   position: absolute;
-  top: 14px;
+  top: 9px;
   width: 4px;
 }
 
@@ -650,7 +788,7 @@ h1 {
 
 .standard-section-heading h2 {
   color: var(--ink);
-  font-size: clamp(2.1rem, 4.8vw, 4.2rem);
+  font-size: clamp(1.7rem, 3.4vw, 3.25rem);
   line-height: 0.96;
   margin: 0;
   min-width: 0;
@@ -659,7 +797,7 @@ h1 {
 
 .standard-section-heading p {
   color: var(--muted);
-  font-size: clamp(0.98rem, 1.35vw, 1.1rem);
+  font-size: clamp(0.92rem, 1.12vw, 1rem);
   font-weight: 650;
   line-height: 1.55;
   margin: 0;
@@ -668,7 +806,257 @@ h1 {
 }
 
 .standard-section-body {
+  height: 100%;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
+}
+
+.section-carousel {
+  display: grid;
+  gap: clamp(8px, 1.4vh, 12px);
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.carousel-stage {
+  background: transparent;
+  border-radius: 0;
+  contain: layout paint;
+  isolation: isolate;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  overflow: clip;
+  position: relative;
+}
+
+.carousel-card {
+  --card-radius: clamp(16px, 1.8vw, 24px);
+  background: transparent;
+  background-clip: padding-box;
+  border: 0;
+  border-radius: var(--card-radius);
+  box-shadow: inset 0 0 0 1px rgba(32, 178, 170, 0.32);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  inset: 0;
+  isolation: isolate;
+  max-height: 100%;
+  max-width: none;
+  min-height: 0;
+  min-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  overflow: clip;
+  padding: clamp(18px, 3vw, 34px);
+  pointer-events: none;
+  position: absolute;
+  transform: none;
+  transition:
+    opacity 360ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+  visibility: hidden;
+  z-index: calc(10 - var(--card-depth));
+}
+
+.carousel-card.is-active {
+  box-shadow: inset 0 0 0 1px rgba(32, 178, 170, 0.42);
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.carousel-card.is-distant {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.carousel-card-main {
+  align-content: start;
+  display: grid;
+  gap: clamp(8px, 1.5vh, 14px);
+  grid-template-rows: auto auto auto auto minmax(0, auto) minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  overflow: clip;
+}
+
+.carousel-card-footer {
+  align-items: end;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  overflow: clip;
+  padding-top: clamp(8px, 1.4vh, 14px);
+}
+
+.carousel-card-icon {
+  align-items: center;
+  background: #f1fbf8;
+  border: 1px solid rgba(32, 178, 170, 0.24);
+  border-radius: 999px;
+  color: #216968;
+  display: inline-flex;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.carousel-card-kicker,
+.carousel-card-meta {
+  color: #2f7f7a;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.carousel-card h3 {
+  color: var(--ink);
+  font-size: clamp(1.55rem, 3.2vw, 2.5rem);
+  line-height: 1;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.carousel-card-description {
+  color: var(--muted);
+  display: -webkit-box;
+  font-size: clamp(0.98rem, 1.4vw, 1.12rem);
+  line-height: 1.62;
+  margin: 0;
+  min-height: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+}
+
+.carousel-chip-list {
+  align-content: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  overflow: clip;
+}
+
+.carousel-chip-list span {
+  background: #f1fbf8;
+  border: 1px solid rgba(32, 178, 170, 0.2);
+  border-radius: 999px;
+  color: #216968;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 8px 11px;
+}
+
+.carousel-card-action {
+  align-items: center;
+  color: #1f6f75;
+  display: inline-flex;
+  font-weight: 850;
+  gap: 8px;
+  justify-self: start;
+  line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.carousel-controls {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  min-height: 58px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.carousel-controls > button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid rgba(23, 50, 77, 0.12);
+  border-radius: 999px;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  height: 42px;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+  width: 42px;
+}
+
+.carousel-controls > button:hover,
+.carousel-controls > button:focus-visible {
+  border-color: rgba(32, 178, 170, 0.38);
+  box-shadow: 0 2px 4px rgba(33, 93, 120, 0.12);
+}
+
+.carousel-controls > button:focus-visible {
+  outline: 0;
+}
+
+.carousel-position {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: min(360px, 45vw);
+  min-width: 0;
+  overflow: visible;
+}
+
+.carousel-position button {
+  background: rgba(92, 113, 132, 0.28);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  height: 8px;
+  padding: 0;
+  transition:
+    background 180ms ease,
+    transform 180ms ease,
+    width 180ms ease;
+  width: 8px;
+}
+
+.carousel-position button.is-active {
+  background: var(--teal);
+  width: 24px;
+}
+
+@media (min-width: 721px) {
+  .carousel-controls > button:focus-visible::after {
+    border: 3px solid rgba(255, 127, 102, 0.48);
+    border-radius: inherit;
+    content: "";
+    inset: -7px;
+    pointer-events: none;
+    position: absolute;
+  }
 }
 
 .cv-layout,
@@ -1001,7 +1389,10 @@ h1 {
   :root {
     --orb-corner-inset: 92px;
     --orb-corner-scale: 0.46;
-    --tab-hub-radius: clamp(132px, 39vmin, 178px);
+    --tab-hub-radius: clamp(118px, 34vmin, 160px);
+    --tab-hub-ring-size: clamp(236px, 68vmin, 320px);
+    --moment-tab-hub-radius: clamp(166px, 48vmin, 218px);
+    --moment-tab-ring-size: clamp(332px, 96vmin, 436px);
     --tab-corner-x: 58px;
     --tab-corner-base: 168px;
     --tab-corner-step: 56px;
@@ -1013,13 +1404,23 @@ h1 {
   }
 
   /* Icon-only tabs on small screens so the orbit fits. */
-  .section-tab {
+  .section-tab,
+  .moment-tab {
+    gap: 0;
     min-height: 48px;
-    min-width: 0;
-    padding: 0 13px;
+    min-width: 48px;
+    padding: 0;
+    width: 48px;
   }
 
-  .section-tab span {
+  .moment-tab {
+    min-height: 42px;
+    min-width: 42px;
+    width: 42px;
+  }
+
+  .section-tab span,
+  .moment-tab span {
     display: none;
   }
 
@@ -1030,17 +1431,17 @@ h1 {
 
   .section-panel-scroll {
     padding:
-      clamp(116px, 17vh, 166px)
+      clamp(92px, 13vh, 112px)
       clamp(14px, 5vw, 28px)
-      clamp(150px, 20vh, 200px);
+      clamp(48px, 7vh, 72px);
   }
 
   .standard-section-header {
-    padding: 18px 0 20px;
+    padding: 12px 0 14px;
   }
 
   .standard-section-heading h2 {
-    font-size: clamp(2rem, 11vw, 3.2rem);
+    font-size: clamp(1.65rem, 8.5vw, 2.6rem);
   }
 }
 

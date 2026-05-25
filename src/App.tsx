@@ -1,6 +1,8 @@
 import {
   BookOpen,
   BriefcaseBusiness,
+  ChevronLeft,
+  ChevronRight,
   Code2,
   ExternalLink,
   Github,
@@ -77,15 +79,132 @@ const tabLayout: Record<SectionId, { angle: number }> = {
   docs: { angle: 180 },
 };
 
+const momentaryTabs = [
+  { label: "Referencias", icon: BookOpen, angle: -35 },
+  { label: "Oportunidades", icon: Rocket, angle: 55 },
+  { label: "Eventos", icon: Newspaper, angle: 145 },
+  { label: "Ideas", icon: Layers, angle: 235 },
+] as const;
+
 type LayoutMode = "hub" | "section";
+type CarouselAction = {
+  label: string;
+  href: string;
+};
+
+type CarouselCard = {
+  id: string;
+  kicker: string;
+  title: string;
+  meta?: string;
+  description: string;
+  tags?: string[];
+  action?: CarouselAction;
+  icon: ReactNode;
+};
 
 // Closing the section view keeps the panel/title mounted for this long so the
 // exit transition can finish before the content unmounts.
 const SECTION_EXIT_MS = 460;
+const ORBIT_HOVER_PLAYBACK_RATE = 0.5;
 
 function sectionFromPathname(pathname: string): SectionId | null {
   const segment = pathname.replace(/^\/+|\/+$/g, "").split("/")[0] ?? "";
   return (orbitOrder as string[]).includes(segment) ? (segment as SectionId) : null;
+}
+
+function setOrbitPlaybackRate(
+  container: HTMLElement | null,
+  animationSelector: string,
+  playbackRate: number,
+) {
+  container?.querySelectorAll<HTMLElement>(animationSelector).forEach((element) => {
+    element.getAnimations().forEach((animation) => {
+      animation.updatePlaybackRate(playbackRate);
+    });
+  });
+}
+
+function findElementAtPoint(
+  container: HTMLElement | null,
+  hitSelector: string,
+  point: { x: number; y: number },
+) {
+  if (!container) {
+    return null;
+  }
+
+  return (
+    Array.from(container.querySelectorAll<HTMLElement>(hitSelector)).find((element) => {
+      const rect = element.getBoundingClientRect();
+      return (
+        point.x >= rect.left &&
+        point.x <= rect.right &&
+        point.y >= rect.top &&
+        point.y <= rect.bottom
+      );
+    }) ?? null
+  );
+}
+
+function useOrbitPointerHover(
+  containerRef: RefObject<HTMLElement>,
+  hitSelector: string,
+  animationSelector: string,
+) {
+  const activeElementRef = useRef<HTMLElement | null>(null);
+  const pointerRef = useRef({ x: 0, y: 0, hasPointer: false });
+
+  const setActiveElement = (nextElement: HTMLElement | null) => {
+    if (activeElementRef.current === nextElement) {
+      return;
+    }
+
+    activeElementRef.current?.classList.remove("is-pointer-hover");
+    nextElement?.classList.add("is-pointer-hover");
+    activeElementRef.current = nextElement;
+    setOrbitPlaybackRate(
+      containerRef.current,
+      animationSelector,
+      nextElement ? ORBIT_HOVER_PLAYBACK_RATE : 1,
+    );
+  };
+
+  useEffect(() => {
+    let frame = 0;
+
+    const onPointerMove = (event: PointerEvent) => {
+      pointerRef.current = { x: event.clientX, y: event.clientY, hasPointer: true };
+    };
+
+    const clearHover = () => {
+      pointerRef.current.hasPointer = false;
+      setActiveElement(null);
+    };
+
+    const tick = () => {
+      const pointer = pointerRef.current;
+      setActiveElement(
+        pointer.hasPointer
+          ? findElementAtPoint(containerRef.current, hitSelector, pointer)
+          : null,
+      );
+      frame = window.requestAnimationFrame(tick);
+    };
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerleave", clearHover);
+    window.addEventListener("blur", clearHover);
+    frame = window.requestAnimationFrame(tick);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerleave", clearHover);
+      window.removeEventListener("blur", clearHover);
+      setActiveElement(null);
+    };
+  }, [animationSelector, containerRef, hitSelector]);
 }
 
 function App() {
@@ -172,7 +291,7 @@ function App() {
         cursorInfluence={0.9}
         bloomStrength={1.2}
         bloomRadius={0.38}
-        hoverTargetRadius={0.75}
+        hoverTargetRadius={0.42}
         interactive={mode === "hub"}
         colorPalette={{
           core: "#fff7bd",
@@ -194,6 +313,7 @@ function App() {
       />
 
       <SectionTabs activeSection={section} onSelect={goToSection} />
+      <MomentaryTabs />
 
       <SectionPanel
         section={displayedSection}
@@ -242,8 +362,8 @@ function LinkIcon({ kind }: { kind: ProfileLink["kind"] }) {
   return <Globe2 {...iconProps} />;
 }
 
-// Rings, glow and the central orb. The whole stage glides to the bottom-right
-// corner when a section is open; the orb stays visible and returns home.
+// Rings, glow and the central orb. Two visible rings match the inner stable
+// orbit and the faster outer orbit.
 function OrbitCore({
   anchorRef,
   mode,
@@ -272,8 +392,8 @@ function OrbitCore({
   );
 }
 
-// The four section tabs. A single set of buttons orbits the current orb center;
-// when a section is open, the orbit follows the corner orb with a smaller radius.
+// The four section tabs. This is the inner orbit; when a section is open, it
+// follows the corner orb with a smaller radius.
 function SectionTabs({
   activeSection,
   onSelect,
@@ -281,8 +401,11 @@ function SectionTabs({
   activeSection: SectionId | null;
   onSelect: (section: SectionId) => void;
 }) {
+  const tabsRef = useRef<HTMLElement>(null);
+  useOrbitPointerHover(tabsRef, ".section-tab", ".section-tab-orbit, .section-tab-level");
+
   return (
-    <nav className="section-tabs" aria-label="Secciones del portal">
+    <nav ref={tabsRef} className="section-tabs" aria-label="Secciones del portal">
       {orbitOrder.map((section, index) => {
         const Icon = sectionCopy[section].icon;
         const isActive = activeSection === section;
@@ -305,6 +428,16 @@ function SectionTabs({
                 <button
                   className={`section-tab ${isActive ? "is-active" : ""}`}
                   onClick={() => onSelect(section)}
+                  onBlur={() =>
+                    setOrbitPlaybackRate(tabsRef.current, ".section-tab-orbit, .section-tab-level", 1)
+                  }
+                  onFocus={() =>
+                    setOrbitPlaybackRate(
+                      tabsRef.current,
+                      ".section-tab-orbit, .section-tab-level",
+                      ORBIT_HOVER_PLAYBACK_RATE,
+                    )
+                  }
                   title={sectionCopy[section].description}
                   type="button"
                   aria-current={isActive ? "page" : undefined}
@@ -318,6 +451,43 @@ function SectionTabs({
         );
       })}
     </nav>
+  );
+}
+
+// Temporary topics live on a faster outer orbit. They are visual anchors for
+// future content, not routes yet.
+function MomentaryTabs() {
+  const tabsRef = useRef<HTMLElement>(null);
+  useOrbitPointerHover(tabsRef, ".moment-tab", ".moment-tab-orbit, .moment-tab-level");
+
+  return (
+    <aside ref={tabsRef} className="momentary-tabs" aria-label="Pestanas momentaneas">
+      {momentaryTabs.map((item) => {
+        const Icon = item.icon;
+
+        return (
+          <div
+            className="moment-tab-orbit"
+            key={item.label}
+            style={
+              {
+                "--orbit-angle": `${item.angle}deg`,
+                "--orbit-counter-angle": `${-item.angle}deg`,
+              } as CSSProperties
+            }
+          >
+            <div className="moment-tab-radius">
+              <div className="moment-tab-level">
+                <span className="moment-tab">
+                  <Icon size={17} aria-hidden="true" />
+                  <span>{item.label}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </aside>
   );
 }
 
@@ -434,65 +604,48 @@ function SectionBody({
 }
 
 function CvSection({ siteData }: { siteData: SiteData }) {
-  return (
-    <div className="cv-layout">
-      <article className="cv-summary">
-        <p>{siteData.cv.summary}</p>
-        <div className="skill-cloud" aria-label="Competencias">
-          {siteData.cv.skills.map((skill) => (
-            <span key={skill}>{skill}</span>
-          ))}
-        </div>
-      </article>
+  const cards: CarouselCard[] = [
+    {
+      id: "cv-summary",
+      kicker: "Perfil",
+      title: "Resumen profesional",
+      description: siteData.cv.summary,
+      tags: siteData.cv.skills,
+      icon: <BriefcaseBusiness size={20} aria-hidden="true" />,
+    },
+    ...siteData.cv.experience.map((item, index) => ({
+      id: `experience-${index}`,
+      kicker: item.period,
+      title: item.title,
+      meta: item.company,
+      description: item.description,
+      icon: <BriefcaseBusiness size={20} aria-hidden="true" />,
+    })),
+    ...siteData.cv.education.map((item, index) => ({
+      id: `education-${index}`,
+      kicker: "Formacion",
+      title: item.title,
+      description: item.detail,
+      icon: <Rocket size={20} aria-hidden="true" />,
+    })),
+  ];
 
-      <div className="timeline" aria-label="Experiencia">
-        {siteData.cv.experience.map((item) => (
-          <article className="timeline-item" key={`${item.period}-${item.title}`}>
-            <time>{item.period}</time>
-            <h3>{item.title}</h3>
-            <p className="company">{item.company}</p>
-            <p>{item.description}</p>
-          </article>
-        ))}
-      </div>
-
-      <div className="education-panel">
-        <Rocket size={22} aria-hidden="true" />
-        {siteData.cv.education.map((item) => (
-          <article key={item.title}>
-            <h3>{item.title}</h3>
-            <p>{item.detail}</p>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
+  return <SectionCarousel ariaLabel="CV" cards={cards} />;
 }
 
 function Projects({ projects }: { projects: Project[] }) {
-  return (
-    <div className="project-grid">
-      {projects.map((project) => (
-        <article className="project-card" key={project.name}>
-          <div className="card-topline">
-            <span>{project.category}</span>
-            <strong>{project.status}</strong>
-          </div>
-          <h3>{project.name}</h3>
-          <p>{project.summary}</p>
-          <div className="stack-list">
-            {project.stack.map((tech) => (
-              <span key={tech}>{tech}</span>
-            ))}
-          </div>
-          <a href={project.href}>
-            Abrir
-            <ExternalLink size={16} aria-hidden="true" />
-          </a>
-        </article>
-      ))}
-    </div>
-  );
+  const cards: CarouselCard[] = projects.map((project) => ({
+    id: project.name,
+    kicker: project.category,
+    title: project.name,
+    meta: project.status,
+    description: project.summary,
+    tags: project.stack,
+    action: { label: "Abrir", href: project.href },
+    icon: <Code2 size={20} aria-hidden="true" />,
+  }));
+
+  return <SectionCarousel ariaLabel="Proyectos" cards={cards} />;
 }
 
 function Personal({
@@ -502,52 +655,174 @@ function Personal({
   posts: Post[];
   featuredProjects: Project[];
 }) {
-  return (
-    <div className="personal-layout">
-      <div className="post-list">
-        {posts.map((post) => (
-          <article className="post-item" key={post.title}>
-            <time dateTime={post.date}>{formatDate(post.date)}</time>
-            <h3>{post.title}</h3>
-            <p>{post.excerpt}</p>
-            <a href={post.href}>
-              Leer
-              <ExternalLink size={16} aria-hidden="true" />
-            </a>
-          </article>
-        ))}
-      </div>
+  const cards: CarouselCard[] = [
+    ...posts.map((post) => ({
+      id: `post-${post.title}`,
+      kicker: formatDate(post.date),
+      title: post.title,
+      description: post.excerpt,
+      action: { label: "Leer", href: post.href },
+      icon: <UserRound size={20} aria-hidden="true" />,
+    })),
+    ...featuredProjects.map((project) => ({
+      id: `focus-${project.name}`,
+      kicker: "Ahora mismo",
+      title: project.name,
+      meta: project.status,
+      description: project.summary,
+      tags: project.stack,
+      action: { label: "Abrir", href: project.href },
+      icon: <Layers size={20} aria-hidden="true" />,
+    })),
+  ];
 
-      <aside className="focus-panel" aria-label="Proyectos destacados">
-        <Layers size={22} aria-hidden="true" />
-        <h3>Ahora mismo</h3>
-        {featuredProjects.map((project) => (
-          <p key={project.name}>
-            <strong>{project.name}</strong>
-            {project.summary}
-          </p>
-        ))}
-      </aside>
-    </div>
-  );
+  return <SectionCarousel ariaLabel="Notas personales" cards={cards} />;
 }
 
 function Docs({ docs }: { docs: DocLink[] }) {
+  const cards: CarouselCard[] = docs.map((doc) => ({
+    id: doc.title,
+    kicker: "Documento",
+    title: doc.title,
+    description: doc.description,
+    action: { label: "Abrir docs", href: doc.href },
+    icon: <Newspaper size={20} aria-hidden="true" />,
+  }));
+
+  return <SectionCarousel ariaLabel="Documentacion" cards={cards} />;
+}
+
+function SectionCarousel({ ariaLabel, cards }: { ariaLabel: string; cards: CarouselCard[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const count = cards.length;
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [ariaLabel]);
+
+  useEffect(() => {
+    setActiveIndex((current) => (count === 0 ? 0 : Math.min(current, count - 1)));
+  }, [count]);
+
+  useEffect(() => {
+    if (paused || count <= 1) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % count);
+    }, 5200);
+
+    return () => window.clearInterval(timer);
+  }, [count, paused]);
+
+  const goTo = (index: number) => {
+    if (count === 0) {
+      return;
+    }
+    setActiveIndex((index + count) % count);
+  };
+
+  const previous = () => goTo(activeIndex - 1);
+  const next = () => goTo(activeIndex + 1);
+
+  if (count === 0) {
+    return null;
+  }
+
   return (
-    <div className="docs-grid">
-      {docs.map((doc) => (
-        <article className="doc-card" key={doc.title}>
-          <Newspaper size={22} aria-hidden="true" />
-          <h3>{doc.title}</h3>
-          <p>{doc.description}</p>
-          <a href={doc.href}>
-            Abrir docs
-            <ExternalLink size={16} aria-hidden="true" />
-          </a>
-        </article>
-      ))}
-    </div>
+    <section className="section-carousel" aria-label={ariaLabel}>
+      <div className="carousel-stage" aria-live={paused ? "off" : "polite"}>
+        {cards.map((card, index) => {
+          const offset = getCarouselOffset(index, activeIndex, count);
+          const isActive = index === activeIndex;
+          const isNearby = Math.abs(offset) <= 2;
+
+          return (
+            <article
+              className={`carousel-card ${isActive ? "is-active" : ""} ${
+                isNearby ? "" : "is-distant"
+              }`}
+              key={card.id}
+              style={
+                {
+                  "--card-offset": offset,
+                  "--card-depth": Math.abs(offset),
+                } as CSSProperties
+              }
+              tabIndex={isActive ? 0 : -1}
+              aria-hidden={!isActive}
+              onFocus={() => setPaused(true)}
+              onBlur={() => setPaused(false)}
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => setPaused(false)}
+            >
+              <div className="carousel-card-main">
+                <div className="carousel-card-icon">{card.icon}</div>
+                <p className="carousel-card-kicker">{card.kicker}</p>
+                <h3>{card.title}</h3>
+                {card.meta ? <p className="carousel-card-meta">{card.meta}</p> : null}
+                <p className="carousel-card-description">{card.description}</p>
+                {card.tags && card.tags.length > 0 ? (
+                  <div className="carousel-chip-list" aria-label="Etiquetas">
+                    {card.tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <footer className="carousel-card-footer">
+                {card.action ? (
+                  <a className="carousel-card-action" href={card.action.href}>
+                    {card.action.label}
+                    <ExternalLink size={16} aria-hidden="true" />
+                  </a>
+                ) : null}
+              </footer>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="carousel-controls" aria-label={`Controles de ${ariaLabel}`}>
+        <button type="button" onClick={previous} aria-label="Tarjeta anterior" title="Anterior">
+          <ChevronLeft size={20} aria-hidden="true" />
+        </button>
+        <div className="carousel-position" aria-label={`${activeIndex + 1} de ${count}`}>
+          {cards.map((card, index) => (
+            <button
+              className={index === activeIndex ? "is-active" : ""}
+              key={card.id}
+              type="button"
+              onClick={() => goTo(index)}
+              aria-label={`Ver ${card.title}`}
+              aria-current={index === activeIndex ? "true" : undefined}
+            />
+          ))}
+        </div>
+        <button type="button" onClick={next} aria-label="Tarjeta siguiente" title="Siguiente">
+          <ChevronRight size={20} aria-hidden="true" />
+        </button>
+      </div>
+    </section>
   );
+}
+
+function getCarouselOffset(index: number, activeIndex: number, count: number) {
+  const raw = index - activeIndex;
+  const half = count / 2;
+
+  if (raw > half) {
+    return raw - count;
+  }
+
+  if (raw < -half) {
+    return raw + count;
+  }
+
+  return raw;
 }
 
 function Footer({ links }: { links: ProfileLink[] }) {
