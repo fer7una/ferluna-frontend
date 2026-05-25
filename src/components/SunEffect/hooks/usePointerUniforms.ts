@@ -15,6 +15,8 @@ type PointerUniformInternalState = {
   lastTargetMouse: Vector2;
   hoverIntensity: number;
   targetHoverIntensity: number;
+  centerIntensity: number;
+  targetCenterIntensity: number;
   cursorVelocity: number;
   targetCursorVelocity: number;
 };
@@ -38,6 +40,10 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function smoothStep(value: number) {
+  return value * value * (3 - 2 * value);
+}
+
 type PointerBounds = {
   left: number;
   top: number;
@@ -46,7 +52,7 @@ type PointerBounds = {
 };
 
 const POINTER_RESPONSE_LAMBDA = 2.35;
-const HOVER_RESPONSE_LAMBDA = 1.45;
+const HOVER_RESPONSE_LAMBDA = 0.6;
 const VELOCITY_RESPONSE_LAMBDA = 2.2;
 const VELOCITY_DECAY_LAMBDA = 1.55;
 const CURSOR_VELOCITY_SCALE = 4.2;
@@ -63,6 +69,8 @@ export function usePointerUniforms(
     lastTargetMouse: new Vector2(0, 0),
     hoverIntensity: 0,
     targetHoverIntensity: 0,
+    centerIntensity: 0,
+    targetCenterIntensity: 0,
     cursorVelocity: 0,
     targetCursorVelocity: 0,
   });
@@ -76,15 +84,22 @@ export function usePointerUniforms(
       pointer.targetMouse.set(x, y);
       if (hoverTargetRadius === undefined) {
         pointer.targetHoverIntensity = 1;
+        pointer.targetCenterIntensity = 1;
       } else {
         const targetRect = hoverTargetRef?.current?.getBoundingClientRect();
         const centerX = targetRect ? targetRect.left + targetRect.width / 2 : bounds.left + bounds.width / 2;
         const centerY = targetRect ? targetRect.top + targetRect.height / 2 : bounds.top + bounds.height / 2;
         const distance = Math.hypot(clientX - centerX, clientY - centerY);
         const targetSize = targetRect ? Math.min(targetRect.width, targetRect.height) : Math.min(bounds.width, bounds.height);
-        const radius = targetSize * hoverTargetRadius;
-        const progress = Math.min(Math.max(1 - distance / Math.max(radius, 1), 0), 1);
-        pointer.targetHoverIntensity = progress * progress * progress * (progress * (progress * 6 - 15) + 10);
+        const radius = Math.max(targetSize * hoverTargetRadius, 1);
+        const centerRadius = targetSize * 0.2;
+        const centerFeather = Math.max(targetSize * 0.22, 1);
+
+        const hoverProgress = clamp(1 - distance / radius, 0, 1);
+        pointer.targetHoverIntensity = Math.pow(hoverProgress, 1.2);
+
+        const centerProgress = clamp(1 - (distance - centerRadius) / centerFeather, 0, 1);
+        pointer.targetCenterIntensity = smoothStep(centerProgress);
       }
 
       const velocity = pointer.targetMouse.distanceTo(pointer.lastTargetMouse);
@@ -98,12 +113,15 @@ export function usePointerUniforms(
     if (!interactive) {
       return;
     }
-    state.current.targetHoverIntensity = hoverTargetRadius === undefined ? 1 : 0;
+    const fallback = hoverTargetRadius === undefined ? 1 : 0;
+    state.current.targetHoverIntensity = fallback;
+    state.current.targetCenterIntensity = fallback;
   }, [hoverTargetRadius, interactive]);
 
   const onPointerLeave = useCallback(() => {
     const pointer = state.current;
     pointer.targetHoverIntensity = 0;
+    pointer.targetCenterIntensity = 0;
     pointer.targetCursorVelocity = 0;
   }, []);
 
@@ -151,6 +169,7 @@ export function usePointerUniforms(
     const clearPointerTarget = () => {
       const pointer = state.current;
       pointer.targetHoverIntensity = 0;
+      pointer.targetCenterIntensity = 0;
       pointer.targetCursorVelocity = 0;
     };
 
@@ -174,6 +193,12 @@ export function usePointerUniforms(
     pointer.hoverIntensity = damp(
       pointer.hoverIntensity,
       pointer.targetHoverIntensity * influence,
+      HOVER_RESPONSE_LAMBDA,
+      dt,
+    );
+    pointer.centerIntensity = damp(
+      pointer.centerIntensity,
+      pointer.targetCenterIntensity * influence,
       HOVER_RESPONSE_LAMBDA,
       dt,
     );

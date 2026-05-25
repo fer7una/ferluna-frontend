@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { SunCorona } from "./SunCorona";
 import { SunMesh } from "./SunMesh";
+import { SunRays } from "./SunRays";
 import type {
   ResolvedSunEffectConfig,
   SunFrameState,
@@ -91,6 +92,13 @@ function SunScene({ anchorRef, config, pointer, preset, reducedMotion }: SunCanv
         reducedMotion={reducedMotion}
       />
       <SunLayoutDriver anchorRef={anchorRef} layout={layout} />
+      <SunRays
+        config={config}
+        frameState={frameState}
+        layout={layout}
+        pointer={pointer}
+        preset={preset}
+      />
       <SunMesh
         config={config}
         frameState={frameState}

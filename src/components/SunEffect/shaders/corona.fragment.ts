@@ -55,12 +55,11 @@ void main() {
   vec2 dir = normalize(uv + 0.0001);
   float time = uTime * 0.22;
 
-  float pointerField = 1.0 + dot(dir, normalize(uMouse + 0.0001)) * 0.5 * uHoverIntensity;
+  float pointerField = 1.0;
   float coronaReveal = smoothstep(0.0, 1.0, uHoverIntensity);
   float coronaFlow = smoothstep(0.05, 0.95, uHoverIntensity);
   vec2 noiseUv = dir * (3.0 + uCoronaDistortion * 3.0);
   noiseUv += vec2(time * 0.7, -time * 0.45);
-  noiseUv += uMouse * (0.18 * uHoverIntensity);
 
   float ragged = fbm(noiseUv) * uCoronaDistortion;
   float coronaEdge = 0.52 + ragged * 0.2 + coronaReveal * 0.045;
