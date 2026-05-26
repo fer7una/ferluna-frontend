@@ -1,5 +1,10 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { getMoonPhase, getNextMoonPhaseChange, renderMoonPhaseFaviconHref } from "./moonPhase";
+import {
+  getMoonPhase,
+  getNextMoonPhaseChange,
+  renderMoonPhaseFaviconHref,
+  type MoonPhase,
+} from "./moonPhase";
 
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
@@ -7,6 +12,16 @@ export type MoonPhaseFavicon = {
   href: string;
   label: string;
 };
+
+export function getMoonPhaseFavicon(date = new Date()): MoonPhaseFavicon {
+  return toFavicon(getMoonPhase(date));
+}
+
+export function applyMoonPhaseFavicon(date = new Date()): MoonPhaseFavicon {
+  const icon = getMoonPhaseFavicon(date);
+  updateFaviconLink(icon);
+  return icon;
+}
 
 export function useMoonPhaseFavicon() {
   const [icon, setIcon] = useState(() => getMoonPhaseFavicon());
@@ -33,25 +48,24 @@ export function useMoonPhaseFavicon() {
   }, []);
 
   useLayoutEffect(() => {
-    updateFavicon(icon);
+    updateFaviconLink(icon);
   }, [icon]);
 
   return icon;
 }
 
-function getMoonPhaseFavicon(date = new Date()): MoonPhaseFavicon {
-  const phase = getMoonPhase(date);
-
+function toFavicon(phase: MoonPhase): MoonPhaseFavicon {
   return {
     href: renderMoonPhaseFaviconHref(phase),
     label: phase.label,
   };
 }
 
-function updateFavicon(icon: MoonPhaseFavicon) {
+function updateFaviconLink(icon: MoonPhaseFavicon) {
+  if (typeof document === "undefined") return;
   const favicon = getOrCreateFaviconLink();
   favicon.type = "image/svg+xml";
-  favicon.href = icon.href;
+  if (favicon.href !== icon.href) favicon.href = icon.href;
   favicon.title = icon.label;
 }
 
@@ -62,6 +76,7 @@ function getOrCreateFaviconLink() {
 
   if (existing) {
     existing.dataset.moonPhaseIcon = "true";
+    existing.rel = "icon";
     return existing;
   }
 

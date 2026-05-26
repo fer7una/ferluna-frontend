@@ -36,6 +36,18 @@
   --tab-corner-x: 132px;
   --tab-corner-base: 226px;
   --tab-corner-step: 60px;
+  /* Corner column stacking for momentary tabs: they sit ABOVE the inner
+     section tabs with their compact yellow style preserved. The gap is sized
+     so the bottom of the lowest moment clears the top of the highest section
+     tab without overlap. */
+  --moment-tab-corner-gap: 56px;
+  --moment-tab-corner-step: 50px;
+  --moment-tab-corner-count: 4;
+  --section-tab-expanded-width: 142px;
+  --moment-tab-expanded-width: 158px;
+  --tab-icon-size: 54px;
+  --moment-tab-icon-size: 46px;
+  --tab-label-max-width: 120px;
 }
 
 * {
@@ -545,12 +557,11 @@ h1 {
   border-color: rgba(255, 127, 102, 0.2);
   box-shadow: 0 14px 34px rgba(255, 127, 102, 0.14);
   color: #704132;
-  cursor: default;
   font-size: 0.84rem;
   min-height: 46px;
-  min-width: 46px;
+  min-width: var(--moment-tab-icon-size);
   padding: 0;
-  width: 46px;
+  width: var(--moment-tab-icon-size);
 }
 
 .moment-tab svg {
@@ -565,13 +576,17 @@ h1 {
 
 .app-shell[data-orb-mode="hub"] .section-tab {
   gap: 0;
-  min-width: 54px;
+  min-width: var(--tab-icon-size);
   padding: 0;
-  width: 54px;
+  width: var(--tab-icon-size);
 }
 
-.moment-tab {
+.app-shell[data-orb-mode="hub"] .moment-tab {
   gap: 0;
+  justify-content: center;
+  min-width: var(--moment-tab-icon-size);
+  padding: 0;
+  width: var(--moment-tab-icon-size);
 }
 
 .app-shell[data-orb-mode="hub"] .section-tab svg,
@@ -579,8 +594,26 @@ h1 {
   flex: 0 0 auto;
 }
 
-.app-shell[data-orb-mode="hub"] .section-tab span,
-.moment-tab span {
+.tab-label {
+  display: block;
+  max-width: var(--tab-label-max-width);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tab-label-text {
+  display: inline-block;
+  min-width: 100%;
+  transform: translateX(0);
+  white-space: nowrap;
+}
+
+.tab-label.is-overflowing .tab-label-text {
+  animation: tab-label-marquee 5.6s ease-in-out infinite;
+}
+
+.app-shell[data-orb-mode="hub"] .section-tab .tab-label,
+.app-shell[data-orb-mode="hub"] .moment-tab .tab-label {
   max-width: 0;
   opacity: 0;
   overflow: hidden;
@@ -590,26 +623,49 @@ h1 {
 }
 
 .app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover,
-.app-shell[data-orb-mode="hub"] .section-tab:focus-visible {
+.app-shell[data-orb-mode="hub"] .section-tab:focus-visible,
+.app-shell[data-orb-mode="hub"] .moment-tab.is-pointer-hover,
+.app-shell[data-orb-mode="hub"] .moment-tab:focus-visible {
   gap: 9px;
   justify-content: flex-start;
-  min-width: 142px;
-  padding: 0 17px;
-  width: 142px;
-}
-
-.moment-tab.is-pointer-hover {
-  gap: 9px;
-  justify-content: flex-start;
-  min-width: 150px;
   padding: 0 14px;
-  width: 150px;
 }
 
-.app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover span,
-.app-shell[data-orb-mode="hub"] .section-tab:focus-visible span,
-.moment-tab.is-pointer-hover span {
-  max-width: 120px;
+.app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover,
+.app-shell[data-orb-mode="hub"] .section-tab:focus-visible {
+  min-width: var(--section-tab-expanded-width);
+  padding: 0 17px;
+  width: var(--section-tab-expanded-width);
+}
+
+.app-shell[data-orb-mode="hub"] .moment-tab.is-pointer-hover,
+.app-shell[data-orb-mode="hub"] .moment-tab:focus-visible {
+  min-width: calc(var(--moment-tab-expanded-width) + 10px);
+  width: calc(var(--moment-tab-expanded-width) + 10px);
+}
+
+.moment-tab:hover {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 244, 214, 0.92)),
+    rgba(255, 255, 255, 0.94);
+  border-color: rgba(255, 127, 102, 0.38);
+  box-shadow: 0 18px 40px rgba(255, 127, 102, 0.2);
+}
+
+.moment-tab.is-active {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 236, 188, 0.92)),
+    rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 200, 87, 0.78);
+  box-shadow: 0 20px 44px rgba(255, 200, 87, 0.26);
+  color: #5a3614;
+}
+
+.app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover .tab-label,
+.app-shell[data-orb-mode="hub"] .section-tab:focus-visible .tab-label,
+.app-shell[data-orb-mode="hub"] .moment-tab.is-pointer-hover .tab-label,
+.app-shell[data-orb-mode="hub"] .moment-tab:focus-visible .tab-label {
+  max-width: var(--tab-label-max-width);
   opacity: 1;
 }
 
@@ -629,8 +685,31 @@ h1 {
   transform: translateX(0);
 }
 
+.app-shell[data-orb-mode="section"] .moment-tab {
+  gap: 9px;
+  justify-content: flex-start;
+  min-width: var(--moment-tab-expanded-width);
+  padding: 0 14px;
+  width: var(--moment-tab-expanded-width);
+}
+
+/* Section mode: the moment-tab orbit performs the same orbit-to-corner glide
+   as the inner section tabs, then becomes an expanded corner stack. */
 .app-shell[data-orb-mode="section"] .moment-tab-orbit {
-  opacity: 0;
+  opacity: 1;
+  translate:
+    calc(100vw - var(--tab-corner-x))
+    calc(
+      100dvh - var(--tab-corner-base)
+        - 3 * var(--tab-corner-step)
+        - var(--moment-tab-corner-gap)
+        - (var(--moment-tab-corner-count) - 1 - var(--moment-tab-index, 0))
+          * var(--moment-tab-corner-step)
+    );
+}
+
+.app-shell[data-orb-mode="section"] .moment-tab-radius {
+  transform: translateX(0);
 }
 
 .section-tab:hover {
@@ -737,7 +816,11 @@ h1 {
   --section-accent: var(--coral);
 }
 
-.standard-section-view[data-section="docs"] {
+.standard-section-view[data-section="docs"],
+.standard-section-view[data-section="references"],
+.standard-section-view[data-section="opportunities"],
+.standard-section-view[data-section="events"],
+.standard-section-view[data-section="ideas"] {
   --section-accent: var(--gold);
 }
 
@@ -1365,6 +1448,136 @@ h1 {
   }
 }
 
+@keyframes tab-label-marquee {
+  0%,
+  18% {
+    transform: translateX(0);
+  }
+
+  50%,
+  68% {
+    transform: translateX(calc(-1 * var(--tab-label-shift)));
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.admin-shell {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(55, 211, 190, 0.2), transparent 30%),
+    radial-gradient(circle at 84% 16%, rgba(255, 184, 77, 0.16), transparent 28%),
+    #090b12;
+  color: var(--text);
+  min-height: 100dvh;
+  padding: clamp(18px, 4vw, 42px);
+}
+
+.admin-panel {
+  display: grid;
+  gap: 18px;
+  margin: 0 auto;
+  max-width: 1180px;
+}
+
+.admin-header,
+.admin-token-row,
+.admin-status {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.admin-header {
+  justify-content: space-between;
+}
+
+.admin-header p {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.admin-header h1 {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.admin-header a,
+.admin-token-row button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: var(--text);
+  display: inline-flex;
+  font: inherit;
+  min-height: 42px;
+  padding: 0 14px;
+  text-decoration: none;
+}
+
+.admin-token-row {
+  flex-wrap: wrap;
+}
+
+.admin-token-row label {
+  color: var(--muted);
+  display: grid;
+  flex: 1 1 320px;
+  font-size: 0.82rem;
+  gap: 6px;
+}
+
+.admin-session-expiry {
+  color: var(--muted);
+  flex: 1 1 320px;
+  font-size: 0.88rem;
+}
+
+.admin-token-row input,
+.admin-editor {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+}
+
+.admin-token-row input {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.admin-token-row button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.admin-status {
+  color: var(--muted);
+  min-height: 24px;
+}
+
+.admin-status strong {
+  color: #ffb09d;
+  font-weight: 600;
+}
+
+.admin-editor {
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  min-height: 62dvh;
+  padding: 16px;
+  resize: vertical;
+  tab-size: 2;
+  width: 100%;
+}
+
 @media (max-width: 960px) {
   .orbit-stage {
     height: min(88vmin, 560px);
@@ -1392,9 +1605,16 @@ h1 {
     --tab-hub-ring-size: clamp(236px, 68vmin, 320px);
     --moment-tab-hub-radius: clamp(166px, 48vmin, 218px);
     --moment-tab-ring-size: clamp(332px, 96vmin, 436px);
-    --tab-corner-x: 58px;
+    --tab-corner-x: 82px;
     --tab-corner-base: 168px;
     --tab-corner-step: 56px;
+    --moment-tab-corner-gap: 48px;
+    --moment-tab-corner-step: 46px;
+    --section-tab-expanded-width: 132px;
+    --moment-tab-expanded-width: 132px;
+    --tab-icon-size: 48px;
+    --moment-tab-icon-size: 42px;
+    --tab-label-max-width: 88px;
   }
 
   .orbit-stage {
@@ -1402,25 +1622,44 @@ h1 {
     width: min(86vmin, 420px);
   }
 
-  /* Icon-only tabs on small screens so the orbit fits. */
   .section-tab,
   .moment-tab {
     gap: 0;
-    min-height: 48px;
-    min-width: 48px;
+    justify-content: center;
     padding: 0;
-    width: 48px;
+  }
+
+  .section-tab {
+    min-height: var(--tab-icon-size);
+    min-width: var(--tab-icon-size);
+    width: var(--tab-icon-size);
   }
 
   .moment-tab {
-    min-height: 42px;
-    min-width: 42px;
-    width: 42px;
+    min-height: var(--moment-tab-icon-size);
+    min-width: var(--moment-tab-icon-size);
+    width: var(--moment-tab-icon-size);
   }
 
-  .section-tab span,
-  .moment-tab span {
-    display: none;
+  .app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover .tab-label,
+  .app-shell[data-orb-mode="hub"] .section-tab:focus-visible .tab-label,
+  .app-shell[data-orb-mode="hub"] .moment-tab.is-pointer-hover .tab-label,
+  .app-shell[data-orb-mode="hub"] .moment-tab:focus-visible .tab-label {
+    max-width: var(--tab-label-max-width);
+  }
+
+  .app-shell[data-orb-mode="section"] .section-tab,
+  .app-shell[data-orb-mode="section"] .moment-tab {
+    gap: 8px;
+    justify-content: flex-start;
+    min-width: var(--section-tab-expanded-width);
+    padding: 0 12px;
+    width: var(--section-tab-expanded-width);
+  }
+
+  .app-shell[data-orb-mode="section"] .section-tab .tab-label,
+  .app-shell[data-orb-mode="section"] .moment-tab .tab-label {
+    max-width: var(--tab-label-max-width);
   }
 
   .topbar {
