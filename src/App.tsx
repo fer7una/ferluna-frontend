@@ -20,72 +20,45 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type FormEvent,
   type ReactNode,
   type RefObject,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { fallbackSiteData, fetchSiteData } from "./api";
+import {
+  ApiError,
+  fallbackSiteData,
+  fetchAdminSiteData,
+  fetchSiteData,
+  loginAdmin,
+  saveAdminSiteData,
+} from "./api";
 import { SunEffect } from "./components/SunEffect";
 import { useMoonPhaseFavicon, type MoonPhaseFavicon } from "./useMoonPhaseFavicon";
-import type { DocLink, Post, ProfileLink, Project, SectionId, SiteData } from "./types";
-
-const sectionCopy: Record<
+import type {
+  DocLink,
+  MomentaryTab,
+  Post,
+  ProfileLink,
+  Project,
   SectionId,
-  {
-    label: string;
-    eyebrow: string;
-    title: string;
-    description: string;
-    icon: typeof BriefcaseBusiness;
-  }
-> = {
-  cv: {
-    label: "CV",
-    eyebrow: "Trayectoria",
-    title: "CV vivo",
-    description: "Experiencia, capacidades y foco profesional.",
-    icon: BriefcaseBusiness,
-  },
-  projects: {
-    label: "Proyectos",
-    eyebrow: "Trabajo",
-    title: "Proyectos visibles",
-    description: "Productos, laboratorios y webs que puedo enseñar.",
-    icon: Code2,
-  },
-  personal: {
-    label: "Personal",
-    eyebrow: "Publicaciones",
-    title: "Notas personales",
-    description: "Espacio para publicar ideas, avances y aprendizajes.",
-    icon: UserRound,
-  },
-  docs: {
-    label: "Docs",
-    eyebrow: "Biblioteca",
-    title: "Documentación",
-    description: "Accesos a guías, recursos y webs técnicas.",
-    icon: BookOpen,
-  },
+  SectionItem,
+  SiteData,
+  SiteSection,
+} from "./types";
+
+type IconComponent = typeof BriefcaseBusiness;
+
+const iconMap: Record<string, IconComponent> = {
+  book: BookOpen,
+  briefcase: BriefcaseBusiness,
+  code: Code2,
+  globe: Globe2,
+  layers: Layers,
+  newspaper: Newspaper,
+  rocket: Rocket,
+  user: UserRound,
 };
-
-const orbitOrder: SectionId[] = ["cv", "projects", "personal", "docs"];
-
-// Each tab owns an orbital angle. CSS animates the wrapper around the current
-// orb center while the button counter-rotates so text remains readable.
-const tabLayout: Record<SectionId, { angle: number }> = {
-  cv: { angle: -90 },
-  projects: { angle: 0 },
-  personal: { angle: 90 },
-  docs: { angle: 180 },
-};
-
-const momentaryTabs = [
-  { label: "Referencias", icon: BookOpen, angle: -35 },
-  { label: "Oportunidades", icon: Rocket, angle: 55 },
-  { label: "Eventos", icon: Newspaper, angle: 145 },
-  { label: "Ideas", icon: Layers, angle: 235 },
-] as const;
 
 type LayoutMode = "hub" | "section";
 type CarouselAction = {
@@ -109,9 +82,95 @@ type CarouselCard = {
 const SECTION_EXIT_MS = 460;
 const ORBIT_HOVER_PLAYBACK_RATE = 0.5;
 
-function sectionFromPathname(pathname: string): SectionId | null {
-  const segment = pathname.replace(/^\/+|\/+$/g, "").split("/")[0] ?? "";
-  return (orbitOrder as string[]).includes(segment) ? (segment as SectionId) : null;
+function pathSegment(pathname: string): string {
+  return pathname.replace(/^\/+|\/+$/g, "").split("/")[0] ?? "";
+}
+
+function sectionFromPathname(pathname: string, sections: SiteSection[]): SectionId | null {
+  const segment = pathSegment(pathname);
+  const section = sections.find((item) => item.route === segment);
+  return section?.id ?? null;
+}
+
+function momentFromPathname(pathname: string, tabs: MomentaryTab[]): string | null {
+  const segment = pathSegment(pathname);
+  const moment = tabs.find((item) => item.id === segment);
+  return moment?.id ?? null;
+}
+
+function isVisibleNow(item: { enabled?: boolean; visibleFrom?: string | null; visibleUntil?: string | null }) {
+  if (item.enabled === false) {
+    return false;
+  }
+
+  const now = Date.now();
+  const visibleFrom = item.visibleFrom ? Date.parse(item.visibleFrom) : null;
+  const visibleUntil = item.visibleUntil ? Date.parse(item.visibleUntil) : null;
+
+  if (visibleFrom !== null && Number.isFinite(visibleFrom) && now < visibleFrom) {
+    return false;
+  }
+
+  if (visibleUntil !== null && Number.isFinite(visibleUntil) && now >= visibleUntil) {
+    return false;
+  }
+
+  return true;
+}
+
+function sortByOrder<T extends { order: number; id: string }>(items: T[]) {
+  return [...items].sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
+}
+
+function IconByKey({ iconKey, size }: { iconKey: string; size: number }) {
+  const Icon = iconMap[iconKey] ?? Globe2;
+  return <Icon size={size} aria-hidden="true" />;
+}
+
+function TabLabel({ children }: { children: string }) {
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [marqueeDistance, setMarqueeDistance] = useState(0);
+
+  useEffect(() => {
+    const label = labelRef.current;
+    const text = textRef.current;
+    if (!label || !text) return;
+
+    const updateOverflow = () => {
+      const labelWidth = label.getBoundingClientRect().width;
+      const textWidth = text.getBoundingClientRect().width;
+      const distance = Math.max(0, textWidth - labelWidth);
+      setIsOverflowing(distance > 1);
+      setMarqueeDistance(distance);
+    };
+
+    updateOverflow();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateOverflow);
+      return () => window.removeEventListener("resize", updateOverflow);
+    }
+
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(label);
+    observer.observe(text);
+    return () => observer.disconnect();
+  }, [children]);
+
+  return (
+    <span
+      ref={labelRef}
+      className={`tab-label ${isOverflowing ? "is-overflowing" : ""}`}
+      style={{ "--tab-label-shift": `${marqueeDistance}px` } as CSSProperties}
+      aria-label={children}
+    >
+      <span ref={textRef} className="tab-label-text">
+        {children}
+      </span>
+    </span>
+  );
 }
 
 function setOrbitPlaybackRate(
@@ -225,13 +284,34 @@ function App() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const section = sectionFromPathname(location.pathname);
   const normalizedPath = location.pathname.replace(/\/+$/, "") || "/";
-  const mode: LayoutMode = section ? "section" : "hub";
+  const isAdmin = normalizedPath === "/admin";
+  const isAdminLogin = normalizedPath === "/admin/login";
+  const visibleSections = useMemo(
+    () =>
+      sortByOrder(
+        siteData.sections.filter(
+          (item) => item.orbit === "inner" && isVisibleNow(item),
+        ),
+      ),
+    [siteData.sections],
+  );
+  const visibleMomentaryTabs = useMemo(
+    () => sortByOrder(siteData.momentaryTabs.filter(isVisibleNow)),
+    [siteData.momentaryTabs],
+  );
+  const section: SectionId | null = isAdmin || isAdminLogin
+    ? null
+    : sectionFromPathname(location.pathname, visibleSections);
+  const sectionConfig: SiteSection | null = visibleSections.find((item) => item.id === section) ?? null;
+  const activeMoment = isAdmin || isAdminLogin || section ? null : momentFromPathname(location.pathname, visibleMomentaryTabs);
+  const momentConfig = visibleMomentaryTabs.find((item) => item.id === activeMoment) ?? null;
+  const mode: LayoutMode = section || activeMoment ? "section" : "hub";
 
-  // displayedSection lags behind `section` so the panel and title keep their
-  // content while the close transition plays out.
+  // displayedSection / displayedMoment lag behind the live route so the panel
+  // and title keep their content while the close transition plays out.
   const [displayedSection, setDisplayedSection] = useState<SectionId | null>(section);
+  const [displayedMoment, setDisplayedMoment] = useState<string | null>(activeMoment);
 
   useEffect(() => {
     if (section) {
@@ -241,19 +321,43 @@ function App() {
 
     const timer = window.setTimeout(() => setDisplayedSection(null), SECTION_EXIT_MS);
     return () => window.clearTimeout(timer);
-  }, [section]);
+  }, [isAdmin, section, sectionConfig]);
 
   useEffect(() => {
-    if (normalizedPath !== "/" && section === null) {
+    if (activeMoment) {
+      setDisplayedMoment(activeMoment);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setDisplayedMoment(null), SECTION_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [activeMoment]);
+
+  useEffect(() => {
+    if (normalizedPath !== "/" && !isAdmin && !isAdminLogin && section === null && activeMoment === null) {
       navigate("/", { replace: true });
     }
-  }, [normalizedPath, section, navigate]);
+  }, [normalizedPath, isAdmin, isAdminLogin, section, activeMoment, navigate]);
 
   useEffect(() => {
-    document.title = section
-      ? `${sectionCopy[section].title} · Fernando Luna`
-      : "Fernando Luna";
-  }, [section]);
+    if (isAdmin && !getStoredAdminSession()) {
+      navigate("/", { replace: true });
+    }
+  }, [isAdmin, navigate]);
+
+  useEffect(() => {
+    if (sectionConfig) {
+      document.title = `${sectionConfig.title} - Fernando Luna`;
+      return;
+    }
+
+    if (momentConfig) {
+      document.title = `${momentConfig.label} · Fernando Luna`;
+      return;
+    }
+
+    document.title = isAdmin ? "Administracion · Fernando Luna" : "Fernando Luna";
+  }, [isAdmin, isAdminLogin, section, sectionConfig, momentConfig]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -271,12 +375,14 @@ function App() {
     return () => controller.abort();
   }, []);
 
-  const featuredProjects = useMemo(
-    () => siteData.projects.filter((project) => project.featured),
-    [siteData.projects],
-  );
-
-  const goToSection = (next: SectionId) => navigate(`/${next}`);
+  const goToSection = (next: SectionId) => {
+    const nextSection = visibleSections.find((item) => item.id === next);
+    if (nextSection) navigate(`/${nextSection.route}`);
+  };
+  const goToMoment = (next: string) => {
+    const nextMoment = visibleMomentaryTabs.find((item) => item.id === next);
+    if (nextMoment) navigate(`/${nextMoment.id}`);
+  };
   const goHome = () => navigate("/");
 
   const orbLabel =
@@ -284,10 +390,28 @@ function App() {
       ? siteData.profile.avatarAlt
       : "Portal de Fernando Luna";
 
+  if (isAdmin) {
+    if (!getStoredAdminSession()) {
+      return null;
+    }
+
+    return <AdminPage />;
+  }
+
+  if (isAdminLogin) {
+    return <AdminLoginPage />;
+  }
+
+  const defaultSection = visibleSections[0];
+
   return (
     // data-orb-mode / data-orb-section expose the layout state for the UI orbit.
     // SunEffect remains fullscreen so the WebGL layers keep stable coordinates.
-    <main className="app-shell" data-orb-mode={mode} data-orb-section={section ?? ""}>
+    <main
+      className="app-shell"
+      data-orb-mode={mode}
+      data-orb-section={section ?? activeMoment ?? ""}
+    >
       <SunEffect
         anchorRef={orbAnchorRef}
         className="viewport-sun-field"
@@ -321,17 +445,31 @@ function App() {
         anchorRef={orbAnchorRef}
         mode={mode}
         orbLabel={mode === "section" ? "Volver al inicio" : orbLabel}
-        onOrbActivate={() => (mode === "section" ? goHome() : goToSection("cv"))}
+        onOrbActivate={() =>
+          mode === "section" ? goHome() : defaultSection ? goToSection(defaultSection.id) : undefined
+        }
       />
 
-      <SectionTabs activeSection={section} onSelect={goToSection} mode={mode} />
-      <MomentaryTabs mode={mode} />
+      <SectionTabs
+        activeSection={section}
+        onSelect={goToSection}
+        mode={mode}
+        sections={visibleSections}
+      />
+      <MomentaryTabs
+        mode={mode}
+        tabs={visibleMomentaryTabs}
+        activeMoment={activeMoment}
+        onSelect={goToMoment}
+      />
 
       <SectionPanel
         section={displayedSection}
+        moment={displayedMoment}
+        momentConfig={visibleMomentaryTabs.find((item) => item.id === displayedMoment) ?? null}
         open={mode === "section"}
         siteData={siteData}
-        featuredProjects={featuredProjects}
+        sections={visibleSections}
       />
     </main>
   );
@@ -410,10 +548,12 @@ function SectionTabs({
   activeSection,
   onSelect,
   mode,
+  sections,
 }: {
   activeSection: SectionId | null;
   onSelect: (section: SectionId) => void;
   mode: LayoutMode;
+  sections: SiteSection[];
 }) {
   const tabsRef = useRef<HTMLElement>(null);
   useOrbitPointerHover(
@@ -425,19 +565,17 @@ function SectionTabs({
 
   return (
     <nav ref={tabsRef} className="section-tabs" aria-label="Secciones del portal">
-      {orbitOrder.map((section, index) => {
-        const Icon = sectionCopy[section].icon;
-        const isActive = activeSection === section;
-        const layout = tabLayout[section];
+      {sections.map((section, index) => {
+        const isActive = activeSection === section.id;
 
         return (
           <div
             className="section-tab-orbit"
-            key={section}
+            key={section.id}
             style={
               {
-                "--orbit-angle": `${layout.angle}deg`,
-                "--orbit-counter-angle": `${-layout.angle}deg`,
+                "--orbit-angle": `${section.angle}deg`,
+                "--orbit-counter-angle": `${-section.angle}deg`,
                 "--tab-index": index,
               } as CSSProperties
             }
@@ -446,7 +584,7 @@ function SectionTabs({
               <div className="section-tab-level">
                 <button
                   className={`section-tab ${isActive ? "is-active" : ""}`}
-                  onClick={() => onSelect(section)}
+                  onClick={() => onSelect(section.id)}
                   onBlur={() =>
                     setOrbitPlaybackRate(tabsRef.current, ".section-tab-orbit, .section-tab-level", 1)
                   }
@@ -457,12 +595,12 @@ function SectionTabs({
                       ORBIT_HOVER_PLAYBACK_RATE,
                     )
                   }
-                  title={sectionCopy[section].description}
+                  title={section.description}
                   type="button"
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <Icon size={20} aria-hidden="true" />
-                  <span>{sectionCopy[section].label}</span>
+                  <IconByKey iconKey={section.iconKey} size={20} />
+                  <TabLabel>{section.label}</TabLabel>
                 </button>
               </div>
             </div>
@@ -473,9 +611,20 @@ function SectionTabs({
   );
 }
 
-// Temporary topics live on a faster outer orbit. They are visual anchors for
-// future content, not routes yet.
-function MomentaryTabs({ mode }: { mode: LayoutMode }) {
+// Outer orbit. In hub mode they spin around the center; in section mode they
+// glide to the corner column, stacked above the inner section tabs while
+// keeping their compact yellowish style from the hub.
+function MomentaryTabs({
+  mode,
+  tabs,
+  activeMoment,
+  onSelect,
+}: {
+  mode: LayoutMode;
+  tabs: MomentaryTab[];
+  activeMoment: string | null;
+  onSelect: (next: string) => void;
+}) {
   const tabsRef = useRef<HTMLElement>(null);
   useOrbitPointerHover(
     tabsRef,
@@ -486,26 +635,43 @@ function MomentaryTabs({ mode }: { mode: LayoutMode }) {
 
   return (
     <aside ref={tabsRef} className="momentary-tabs" aria-label="Pestanas momentaneas">
-      {momentaryTabs.map((item) => {
-        const Icon = item.icon;
+      {tabs.map((item, index) => {
+        const isActive = activeMoment === item.id;
 
         return (
           <div
             className="moment-tab-orbit"
-            key={item.label}
+            key={item.id}
             style={
               {
                 "--orbit-angle": `${item.angle}deg`,
                 "--orbit-counter-angle": `${-item.angle}deg`,
+                "--moment-tab-index": index,
               } as CSSProperties
             }
           >
             <div className="moment-tab-radius">
               <div className="moment-tab-level">
-                <span className="moment-tab">
-                  <Icon size={17} aria-hidden="true" />
-                  <span>{item.label}</span>
-                </span>
+                <button
+                  className={`moment-tab ${isActive ? "is-active" : ""}`}
+                  onClick={() => onSelect(item.id)}
+                  onBlur={() =>
+                    setOrbitPlaybackRate(tabsRef.current, ".moment-tab-orbit, .moment-tab-level", 1)
+                  }
+                  onFocus={() =>
+                    setOrbitPlaybackRate(
+                      tabsRef.current,
+                      ".moment-tab-orbit, .moment-tab-level",
+                      ORBIT_HOVER_PLAYBACK_RATE,
+                    )
+                  }
+                  title={item.label}
+                  type="button"
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <IconByKey iconKey={item.iconKey} size={17} />
+                  <TabLabel>{item.label}</TabLabel>
+                </button>
               </div>
             </div>
           </div>
@@ -518,53 +684,93 @@ function MomentaryTabs({ mode }: { mode: LayoutMode }) {
 // Full-screen scrollable panel that holds the active section's content.
 function SectionPanel({
   section,
+  moment,
+  momentConfig,
   open,
   siteData,
-  featuredProjects,
+  sections,
 }: {
   section: SectionId | null;
+  moment: string | null;
+  momentConfig: MomentaryTab | null;
   open: boolean;
   siteData: SiteData;
-  featuredProjects: Project[];
+  sections: SiteSection[];
 }) {
+  const sectionConfig = sections.find((item) => item.id === section) ?? null;
+
   return (
     <section className={`section-panel ${open ? "is-open" : ""}`} aria-hidden={!open}>
       <div className="section-panel-scroll">
-        {section ? (
-          <SectionContent
-            activeSection={section}
-            siteData={siteData}
-            featuredProjects={featuredProjects}
-          />
+        {section && sectionConfig ? (
+          <SectionContent section={sectionConfig} siteData={siteData} />
+        ) : moment && momentConfig ? (
+          <MomentPlaceholder moment={momentConfig} />
         ) : null}
       </div>
     </section>
   );
 }
 
-function SectionContent({
-  activeSection,
-  siteData,
-  featuredProjects,
-}: {
-  activeSection: SectionId;
-  siteData: SiteData;
-  featuredProjects: Project[];
-}) {
-  const copy = sectionCopy[activeSection];
+function MomentPlaceholder({ moment }: { moment: MomentaryTab }) {
+  const cards: CarouselCard[] = [
+    {
+      id: `${moment.id}-placeholder-1`,
+      kicker: "Próximamente",
+      title: `${moment.label} en preparación`,
+      description:
+        "Estoy curando el contenido de esta pestaña. Pronto verás aquí lo más relevante.",
+      icon: <IconByKey iconKey={moment.iconKey} size={20} />,
+    },
+    {
+      id: `${moment.id}-placeholder-2`,
+      kicker: "Vista previa",
+      title: "Estructura reservada",
+      description:
+        "Misma estructura que las secciones principales: tarjetas con resumen, etiquetas y enlace.",
+      icon: <IconByKey iconKey="layers" size={20} />,
+    },
+    {
+      id: `${moment.id}-placeholder-3`,
+      kicker: "Detalle",
+      title: "Pendiente de definir",
+      description:
+        "Cuando el contenido esté listo, esta vista cargará tarjetas reales desde el backend.",
+      icon: <IconByKey iconKey="newspaper" size={20} />,
+    },
+  ];
 
   return (
     <StandardSectionView
-      section={activeSection}
-      eyebrow={copy.eyebrow}
-      title={copy.title}
-      description={copy.description}
-      icon={copy.icon}
+      section={moment.id}
+      eyebrow="Pestaña momentánea"
+      title={moment.label}
+      description="Contenido placeholder con la misma estructura que las secciones principales."
+      iconKey={moment.iconKey}
+    >
+      <SectionCarousel ariaLabel={moment.label} cards={cards} />
+    </StandardSectionView>
+  );
+}
+
+function SectionContent({
+  section,
+  siteData,
+}: {
+  section: SiteSection;
+  siteData: SiteData;
+}) {
+  return (
+    <StandardSectionView
+      section={section.id}
+      eyebrow={section.eyebrow}
+      title={section.title}
+      description={section.description}
+      iconKey={section.iconKey}
     >
       <SectionBody
-        activeSection={activeSection}
+        activeSection={section.id}
         siteData={siteData}
-        featuredProjects={featuredProjects}
       />
     </StandardSectionView>
   );
@@ -575,21 +781,21 @@ function StandardSectionView({
   eyebrow,
   title,
   description,
-  icon: Icon,
+  iconKey,
   children,
 }: {
   section: SectionId;
   eyebrow: string;
   title: string;
   description: string;
-  icon: typeof BriefcaseBusiness;
+  iconKey: string;
   children: ReactNode;
 }) {
   return (
     <article className="standard-section-view" data-section={section}>
       <header className="standard-section-header">
         <span className="standard-section-eyebrow">
-          <Icon size={17} aria-hidden="true" />
+          <IconByKey iconKey={iconKey} size={17} />
           {eyebrow}
         </span>
         <div className="standard-section-heading">
@@ -606,18 +812,26 @@ function StandardSectionView({
 function SectionBody({
   activeSection,
   siteData,
-  featuredProjects,
 }: {
   activeSection: SectionId;
   siteData: SiteData;
-  featuredProjects: Project[];
 }) {
+  const sectionItems = sortByOrder(
+    siteData.sectionItems.filter(
+      (item) => item.sectionId === activeSection && isVisibleNow(item),
+    ),
+  );
+
+  if (sectionItems.length > 0) {
+    return <GenericSectionItems ariaLabel={activeSection} items={sectionItems} />;
+  }
+
   if (activeSection === "projects") {
     return <Projects projects={siteData.projects} />;
   }
 
   if (activeSection === "personal") {
-    return <Personal posts={siteData.posts} featuredProjects={featuredProjects} />;
+    return <Personal posts={siteData.posts} featuredProjects={siteData.projects.filter((project) => project.featured)} />;
   }
 
   if (activeSection === "docs") {
@@ -625,6 +839,28 @@ function SectionBody({
   }
 
   return <CvSection siteData={siteData} />;
+}
+
+function GenericSectionItems({ ariaLabel, items }: { ariaLabel: string; items: SectionItem[] }) {
+  const cards: CarouselCard[] = items.map((item) => ({
+    id: item.id,
+    kicker: normalizeKicker(item),
+    title: item.title,
+    meta: item.meta ?? undefined,
+    description: item.description,
+    tags: item.tags,
+    action: item.href ? { label: item.kind === "post" ? "Leer" : "Abrir", href: item.href } : undefined,
+    icon: <IconByKey iconKey={item.iconKey} size={20} />,
+  }));
+
+  return <SectionCarousel ariaLabel={ariaLabel} cards={cards} />;
+}
+
+function normalizeKicker(item: SectionItem) {
+  if (item.kind === "post") {
+    return formatDate(item.kicker);
+  }
+  return item.kicker;
 }
 
 function CvSection({ siteData }: { siteData: SiteData }) {
@@ -879,6 +1115,261 @@ function getCarouselOffset(index: number, activeIndex: number, count: number) {
   return raw;
 }
 
+type AdminContentData = Pick<SiteData, "sections" | "sectionItems" | "momentaryTabs">;
+
+type AdminSession = {
+  accessToken: string;
+  expiresAt: number;
+};
+
+const ADMIN_SESSION_STORAGE_KEY = "ferluna-admin-session";
+
+function getStoredAdminSession(): AdminSession | null {
+  try {
+    const rawSession = sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
+    if (!rawSession) return null;
+
+    const session = JSON.parse(rawSession) as Partial<AdminSession>;
+    if (!session.accessToken || !session.expiresAt) return null;
+    if (Date.now() >= session.expiresAt * 1000) {
+      clearStoredAdminSession();
+      return null;
+    }
+
+    return {
+      accessToken: session.accessToken,
+      expiresAt: session.expiresAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function storeAdminSession(session: AdminSession) {
+  try {
+    sessionStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
+  } catch {
+    return;
+  }
+}
+
+function clearStoredAdminSession() {
+  try {
+    sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+  } catch {
+    return;
+  }
+}
+
+function AdminLoginPage() {
+  const navigate = useNavigate();
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState("Introduce la clave de administracion.");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!password) {
+      setError("La clave es obligatoria.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setStatus("Validando");
+
+    try {
+      const session = await loginAdmin(password);
+      storeAdminSession({
+        accessToken: session.accessToken,
+        expiresAt: session.expiresAt,
+      });
+      navigate("/admin", { replace: true });
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "No se pudo iniciar sesion.");
+      setStatus("Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="admin-shell">
+      <section className="admin-panel admin-login-panel" aria-labelledby="admin-login-title">
+        <header className="admin-header">
+          <div>
+            <p>Fernando Luna</p>
+            <h1 id="admin-login-title">Acceso de administracion</h1>
+          </div>
+          <a href="/">Volver</a>
+        </header>
+
+        <form className="admin-token-row" onSubmit={submitLogin}>
+          <label>
+            Clave
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              type="password"
+              autoComplete="current-password"
+            />
+          </label>
+          <button type="submit" disabled={busy}>
+            Entrar
+          </button>
+        </form>
+
+        <div className="admin-status" aria-live="polite">
+          <span>{status}</span>
+          {error ? <strong>{error}</strong> : null}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function AdminPage() {
+  const navigate = useNavigate();
+  const [session, setSession] = useState(() => getStoredAdminSession());
+  const [draft, setDraft] = useState(() => JSON.stringify(adminContentFromSiteData(fallbackSiteData), null, 2));
+  const [status, setStatus] = useState("Sin cargar");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const loadAdminData = async () => {
+    const currentSession = getStoredAdminSession();
+    if (!currentSession) {
+      clearStoredAdminSession();
+      navigate("/", { replace: true });
+      return;
+    }
+
+    setSession(currentSession);
+    const controller = new AbortController();
+    setBusy(true);
+    setError(null);
+    setStatus("Cargando");
+
+    try {
+      const data = await fetchAdminSiteData(currentSession.accessToken, controller.signal);
+      setDraft(JSON.stringify(adminContentFromSiteData(data), null, 2));
+      setStatus("Contenido cargado");
+    } catch (loadError) {
+      if (loadError instanceof ApiError && loadError.status === 401) {
+        clearStoredAdminSession();
+        navigate("/", { replace: true });
+        return;
+      }
+
+      setError(loadError instanceof Error ? loadError.message : "No se pudo cargar el contenido.");
+      setStatus("Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveAdminData = async () => {
+    const currentSession = getStoredAdminSession();
+    if (!currentSession) {
+      clearStoredAdminSession();
+      navigate("/", { replace: true });
+      return;
+    }
+
+    setSession(currentSession);
+    let parsed: AdminContentData;
+    try {
+      parsed = parseAdminDraft(draft);
+    } catch (parseError) {
+      setError(parseError instanceof Error ? parseError.message : "JSON invalido.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setStatus("Guardando");
+
+    try {
+      const saved = await saveAdminSiteData(currentSession.accessToken, parsed);
+      setDraft(JSON.stringify(saved, null, 2));
+      setStatus("Guardado");
+    } catch (saveError) {
+      if (saveError instanceof ApiError && saveError.status === 401) {
+        clearStoredAdminSession();
+        navigate("/", { replace: true });
+        return;
+      }
+
+      setError(saveError instanceof Error ? saveError.message : "No se pudo guardar el contenido.");
+      setStatus("Error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="admin-shell">
+      <section className="admin-panel" aria-labelledby="admin-title">
+        <header className="admin-header">
+          <div>
+            <p>Fernando Luna</p>
+            <h1 id="admin-title">Administracion de contenido</h1>
+          </div>
+          <a href="/">Volver</a>
+        </header>
+
+        <div className="admin-token-row">
+          <span className="admin-session-expiry">
+            Sesion activa hasta {session ? formatDateTime(session.expiresAt) : "sin sesion"}
+          </span>
+          <button type="button" onClick={loadAdminData} disabled={busy}>
+            Cargar
+          </button>
+          <button type="button" onClick={saveAdminData} disabled={busy}>
+            Guardar
+          </button>
+        </div>
+
+        <div className="admin-status" aria-live="polite">
+          <span>{status}</span>
+          {error ? <strong>{error}</strong> : null}
+        </div>
+
+        <textarea
+          className="admin-editor"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          spellCheck={false}
+          aria-label="Contenido editable en JSON"
+        />
+      </section>
+    </main>
+  );
+}
+
+function adminContentFromSiteData(data: SiteData): AdminContentData {
+  return {
+    sections: data.sections,
+    sectionItems: data.sectionItems,
+    momentaryTabs: data.momentaryTabs,
+  };
+}
+
+function parseAdminDraft(value: string): AdminContentData {
+  const parsed = JSON.parse(value) as Partial<AdminContentData>;
+  if (!Array.isArray(parsed.sections)) throw new Error("sections debe ser una lista.");
+  if (!Array.isArray(parsed.sectionItems)) throw new Error("sectionItems debe ser una lista.");
+  if (!Array.isArray(parsed.momentaryTabs)) throw new Error("momentaryTabs debe ser una lista.");
+
+  return {
+    sections: parsed.sections,
+    sectionItems: parsed.sectionItems,
+    momentaryTabs: parsed.momentaryTabs,
+  };
+}
+
 function Footer({ links }: { links: ProfileLink[] }) {
   return (
     <footer className="footer">
@@ -900,8 +1391,20 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   year: "numeric",
 });
 
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
 function formatDate(value: string) {
   return DATE_FORMATTER.format(new Date(value));
+}
+
+function formatDateTime(unixSeconds: number) {
+  return DATE_TIME_FORMATTER.format(new Date(unixSeconds * 1000));
 }
 
 export default App;
