@@ -26,6 +26,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { fallbackSiteData, fetchSiteData } from "./api";
 import { SunEffect } from "./components/SunEffect";
+import { useMoonPhaseFavicon, type MoonPhaseFavicon } from "./useMoonPhaseFavicon";
 import type { DocLink, Post, ProfileLink, Project, SectionId, SiteData } from "./types";
 
 const sectionCopy: Record<
@@ -125,52 +126,48 @@ function setOrbitPlaybackRate(
   });
 }
 
-function findElementAtPoint(
-  container: HTMLElement | null,
-  hitSelector: string,
-  point: { x: number; y: number },
-) {
-  if (!container) {
-    return null;
-  }
-
-  return (
-    Array.from(container.querySelectorAll<HTMLElement>(hitSelector)).find((element) => {
-      const rect = element.getBoundingClientRect();
-      return (
-        point.x >= rect.left &&
-        point.x <= rect.right &&
-        point.y >= rect.top &&
-        point.y <= rect.bottom
-      );
-    }) ?? null
-  );
-}
-
 function useOrbitPointerHover(
   containerRef: RefObject<HTMLElement>,
   hitSelector: string,
   animationSelector: string,
+  enabled: boolean,
 ) {
   const activeElementRef = useRef<HTMLElement | null>(null);
   const pointerRef = useRef({ x: 0, y: 0, hasPointer: false });
 
-  const setActiveElement = (nextElement: HTMLElement | null) => {
-    if (activeElementRef.current === nextElement) {
+  useEffect(() => {
+    const clearActive = () => {
+      if (activeElementRef.current) {
+        activeElementRef.current.classList.remove("is-pointer-hover");
+        activeElementRef.current = null;
+        setOrbitPlaybackRate(containerRef.current, animationSelector, 1);
+      }
+    };
+
+    if (!enabled) {
+      clearActive();
       return;
     }
 
-    activeElementRef.current?.classList.remove("is-pointer-hover");
-    nextElement?.classList.add("is-pointer-hover");
-    activeElementRef.current = nextElement;
-    setOrbitPlaybackRate(
-      containerRef.current,
-      animationSelector,
-      nextElement ? ORBIT_HOVER_PLAYBACK_RATE : 1,
-    );
-  };
+    const container = containerRef.current;
+    const targets = container
+      ? Array.from(container.querySelectorAll<HTMLElement>(hitSelector))
+      : [];
 
-  useEffect(() => {
+    const setActiveElement = (nextElement: HTMLElement | null) => {
+      if (activeElementRef.current === nextElement) {
+        return;
+      }
+      activeElementRef.current?.classList.remove("is-pointer-hover");
+      nextElement?.classList.add("is-pointer-hover");
+      activeElementRef.current = nextElement;
+      setOrbitPlaybackRate(
+        containerRef.current,
+        animationSelector,
+        nextElement ? ORBIT_HOVER_PLAYBACK_RATE : 1,
+      );
+    };
+
     let frame = 0;
 
     const onPointerMove = (event: PointerEvent) => {
@@ -184,11 +181,24 @@ function useOrbitPointerHover(
 
     const tick = () => {
       const pointer = pointerRef.current;
-      setActiveElement(
-        pointer.hasPointer
-          ? findElementAtPoint(containerRef.current, hitSelector, pointer)
-          : null,
-      );
+      let found: HTMLElement | null = null;
+
+      if (pointer.hasPointer) {
+        for (const element of targets) {
+          const rect = element.getBoundingClientRect();
+          if (
+            pointer.x >= rect.left &&
+            pointer.x <= rect.right &&
+            pointer.y >= rect.top &&
+            pointer.y <= rect.bottom
+          ) {
+            found = element;
+            break;
+          }
+        }
+      }
+
+      setActiveElement(found);
       frame = window.requestAnimationFrame(tick);
     };
 
@@ -202,12 +212,14 @@ function useOrbitPointerHover(
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerleave", clearHover);
       window.removeEventListener("blur", clearHover);
-      setActiveElement(null);
+      clearActive();
     };
-  }, [animationSelector, containerRef, hitSelector]);
+  }, [enabled, animationSelector, containerRef, hitSelector]);
 }
 
 function App() {
+  const moonPhaseFavicon = useMoonPhaseFavicon();
+
   const [siteData, setSiteData] = useState<SiteData>(fallbackSiteData);
   const orbAnchorRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -301,7 +313,7 @@ function App() {
         }}
       />
 
-      <Header links={siteData.profile.links} />
+      <Header links={siteData.profile.links} brandIcon={moonPhaseFavicon} />
 
       <h1 className="sr-only">{siteData.profile.name}</h1>
 
@@ -312,8 +324,8 @@ function App() {
         onOrbActivate={() => (mode === "section" ? goHome() : goToSection("cv"))}
       />
 
-      <SectionTabs activeSection={section} onSelect={goToSection} />
-      <MomentaryTabs />
+      <SectionTabs activeSection={section} onSelect={goToSection} mode={mode} />
+      <MomentaryTabs mode={mode} />
 
       <SectionPanel
         section={displayedSection}
@@ -325,11 +337,11 @@ function App() {
   );
 }
 
-function Header({ links }: { links: ProfileLink[] }) {
+function Header({ links, brandIcon }: { links: ProfileLink[]; brandIcon: MoonPhaseFavicon }) {
   return (
     <header className="topbar">
       <a className="brand-mark" aria-label="Fernando Luna inicio">
-        <img src="/favicon.svg" alt="" />
+        <img src={brandIcon.href} alt="" title={brandIcon.label} />
         <span>Fernando Luna</span>
       </a>
 
@@ -397,12 +409,19 @@ function OrbitCore({
 function SectionTabs({
   activeSection,
   onSelect,
+  mode,
 }: {
   activeSection: SectionId | null;
   onSelect: (section: SectionId) => void;
+  mode: LayoutMode;
 }) {
   const tabsRef = useRef<HTMLElement>(null);
-  useOrbitPointerHover(tabsRef, ".section-tab", ".section-tab-orbit, .section-tab-level");
+  useOrbitPointerHover(
+    tabsRef,
+    ".section-tab",
+    ".section-tab-orbit, .section-tab-level",
+    mode === "hub",
+  );
 
   return (
     <nav ref={tabsRef} className="section-tabs" aria-label="Secciones del portal">
@@ -456,9 +475,14 @@ function SectionTabs({
 
 // Temporary topics live on a faster outer orbit. They are visual anchors for
 // future content, not routes yet.
-function MomentaryTabs() {
+function MomentaryTabs({ mode }: { mode: LayoutMode }) {
   const tabsRef = useRef<HTMLElement>(null);
-  useOrbitPointerHover(tabsRef, ".moment-tab", ".moment-tab-orbit, .moment-tab-level");
+  useOrbitPointerHover(
+    tabsRef,
+    ".moment-tab",
+    ".moment-tab-orbit, .moment-tab-level",
+    mode === "hub",
+  );
 
   return (
     <aside ref={tabsRef} className="momentary-tabs" aria-label="Pestanas momentaneas">
@@ -710,11 +734,41 @@ function SectionCarousel({ ariaLabel, cards }: { ariaLabel: string; cards: Carou
       return;
     }
 
-    const timer = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % count);
-    }, 5200);
+    let timer: number | null = null;
 
-    return () => window.clearInterval(timer);
+    const start = () => {
+      if (timer !== null) {
+        return;
+      }
+      timer = window.setInterval(() => {
+        setActiveIndex((current) => (current + 1) % count);
+      }, 5200);
+    };
+
+    const stop = () => {
+      if (timer !== null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    if (document.visibilityState === "visible") {
+      start();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      stop();
+    };
   }, [count, paused]);
 
   const goTo = (index: number) => {
@@ -840,12 +894,14 @@ function Footer({ links }: { links: ProfileLink[] }) {
   );
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
+  return DATE_FORMATTER.format(new Date(value));
 }
 
 export default App;

@@ -323,21 +323,21 @@ h1 {
   border-radius: 50%;
   display: grid;
   height: min(78vmin, 720px);
-  left: var(--orb-center-x);
+  left: 0;
   isolation: isolate;
   margin: 0;
   place-items: center;
   pointer-events: none;
   position: fixed;
-  top: var(--orb-center-y);
+  top: 0;
+  translate: var(--orb-center-x) var(--orb-center-y);
   transform: translate3d(-50%, -50%, 0) scale(var(--orb-scale));
   transform-origin: 50% 50%;
   transition:
-    left 860ms var(--ease-glide),
-    top 860ms var(--ease-glide),
+    translate 860ms var(--ease-glide),
     transform 860ms var(--ease-glide);
   width: min(78vmin, 720px);
-  will-change: left, top, transform;
+  will-change: translate, transform;
   z-index: 6;
 }
 
@@ -442,16 +442,15 @@ h1 {
 .section-tab-orbit,
 .moment-tab-orbit {
   height: 0;
-  left: var(--orb-center-x);
+  left: 0;
   pointer-events: none;
   position: fixed;
-  top: var(--orb-center-y);
+  top: 0;
+  translate: var(--orb-center-x) var(--orb-center-y);
   transform: rotate(var(--orbit-angle));
-  transition:
-    left 860ms var(--ease-glide),
-    top 860ms var(--ease-glide);
+  transition: translate 860ms var(--ease-glide);
   width: 0;
-  will-change: left, top, transform;
+  will-change: translate, transform;
   z-index: 7;
 }
 
@@ -462,8 +461,7 @@ h1 {
 .moment-tab-orbit {
   animation: tab-orbit var(--moment-tab-orbit-duration) linear infinite;
   transition:
-    left 860ms var(--ease-glide),
-    top 860ms var(--ease-glide),
+    translate 860ms var(--ease-glide),
     opacity 260ms ease;
   z-index: 6;
 }
@@ -619,11 +617,12 @@ h1 {
    the orbital radius collapses to 0. The orbit rotation keeps running the whole
    time, so the hub orbit is never stopped or reset. */
 .app-shell[data-orb-mode="section"] .section-tab-orbit {
-  left: calc(100vw - var(--tab-corner-x));
-  top: calc(
-    100dvh - var(--tab-corner-base) -
-      (3 - var(--tab-index)) * var(--tab-corner-step)
-  );
+  translate:
+    calc(100vw - var(--tab-corner-x))
+    calc(
+      100dvh - var(--tab-corner-base) -
+        (3 - var(--tab-index)) * var(--tab-corner-step)
+    );
 }
 
 .app-shell[data-orb-mode="section"] .section-tab-radius {
