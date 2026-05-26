@@ -59,12 +59,61 @@ export type DocLink = {
   href: string;
 };
 
+export type OrbitSlot = "inner" | "outer";
+
+export type SiteSection = {
+  id: string;
+  route: string;
+  label: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  iconKey: string;
+  orbit: OrbitSlot;
+  angle: number;
+  order: number;
+  visibleFrom: string | null;
+  visibleUntil: string | null;
+  enabled: boolean;
+};
+
+export type SectionItem = {
+  id: string;
+  sectionId: string;
+  kind: string;
+  kicker: string;
+  title: string;
+  meta: string | null;
+  description: string;
+  href: string | null;
+  tags: string[];
+  iconKey: string;
+  order: number;
+  visibleFrom: string | null;
+  visibleUntil: string | null;
+  featured: boolean;
+};
+
+export type MomentaryTab = {
+  id: string;
+  label: string;
+  iconKey: string;
+  angle: number;
+  order: number;
+  visibleFrom: string | null;
+  visibleUntil: string | null;
+  enabled: boolean;
+};
+
 export type SiteData = {
   profile: Profile;
   cv: Cv;
   projects: Project[];
   posts: Post[];
   docs: DocLink[];
+  sections: SiteSection[];
+  sectionItems: SectionItem[];
+  momentaryTabs: MomentaryTab[];
 };
 
-export type SectionId = "cv" | "projects" | "personal" | "docs";
+export type SectionId = string;
