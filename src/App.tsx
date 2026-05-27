@@ -81,6 +81,7 @@ type CarouselCard = {
 // exit transition can finish before the content unmounts.
 const SECTION_EXIT_MS = 460;
 const ORBIT_HOVER_PLAYBACK_RATE = 0.5;
+const EDGE_RAIL_MEDIA_QUERY = "(max-width: 1900px)";
 
 function pathSegment(pathname: string): string {
   return pathname.replace(/^\/+|\/+$/g, "").split("/")[0] ?? "";
@@ -178,6 +179,10 @@ function setOrbitPlaybackRate(
   animationSelector: string,
   playbackRate: number,
 ) {
+  if (!animationSelector) {
+    return;
+  }
+
   container?.querySelectorAll<HTMLElement>(animationSelector).forEach((element) => {
     element.getAnimations().forEach((animation) => {
       animation.updatePlaybackRate(playbackRate);
@@ -280,6 +285,9 @@ function App() {
   const moonPhaseFavicon = useMoonPhaseFavicon();
 
   const [siteData, setSiteData] = useState<SiteData>(fallbackSiteData);
+  const [isEdgeRailViewport, setIsEdgeRailViewport] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia(EDGE_RAIL_MEDIA_QUERY).matches,
+  );
   const orbAnchorRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -307,11 +315,112 @@ function App() {
   const activeMoment = isAdmin || isAdminLogin || section ? null : momentFromPathname(location.pathname, visibleMomentaryTabs);
   const momentConfig = visibleMomentaryTabs.find((item) => item.id === activeMoment) ?? null;
   const mode: LayoutMode = section || activeMoment ? "section" : "hub";
+  const shouldUseEdgeRail = mode === "section" && isEdgeRailViewport;
 
   // displayedSection / displayedMoment lag behind the live route so the panel
   // and title keep their content while the close transition plays out.
   const [displayedSection, setDisplayedSection] = useState<SectionId | null>(section);
   const [displayedMoment, setDisplayedMoment] = useState<string | null>(activeMoment);
+  const [isEdgeRailReady, setIsEdgeRailReady] = useState(false);
+  const orbTabsRef = useRef<HTMLDivElement>(null);
+  const [orbTabScrollShadows, setOrbTabScrollShadows] = useState({
+    down: false,
+    measured: false,
+    overflow: false,
+    up: false,
+  });
+  const usesEdgeRail = shouldUseEdgeRail && isEdgeRailReady;
+
+  useOrbitPointerHover(orbTabsRef, ".section-tab, .moment-tab", "", usesEdgeRail);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(EDGE_RAIL_MEDIA_QUERY);
+    const onChange = () => setIsEdgeRailViewport(mediaQuery.matches);
+
+    onChange();
+    mediaQuery.addEventListener("change", onChange);
+
+    return () => mediaQuery.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    const tabs = orbTabsRef.current;
+
+    if (!usesEdgeRail || !tabs) {
+      setOrbTabScrollShadows((current) =>
+        current.measured || current.overflow || current.up || current.down
+          ? { down: false, measured: false, overflow: false, up: false }
+          : current,
+      );
+      return;
+    }
+
+    setOrbTabScrollShadows({ down: false, measured: false, overflow: false, up: false });
+
+    let frame = 0;
+    const timers: number[] = [];
+    const updateScrollShadows = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const tolerance = 2;
+        const hasOverflow = tabs.scrollHeight - tabs.clientHeight > tolerance;
+        const next = {
+          down: hasOverflow && tabs.scrollTop + tabs.clientHeight < tabs.scrollHeight - tolerance,
+          measured: true,
+          overflow: hasOverflow,
+          up: hasOverflow && tabs.scrollTop > tolerance,
+        };
+
+        setOrbTabScrollShadows((current) =>
+          current.measured === next.measured &&
+          current.overflow === next.overflow &&
+          current.up === next.up &&
+          current.down === next.down
+            ? current
+            : next,
+        );
+      });
+    };
+    const scheduleLayoutScrollShadowUpdate = () => {
+      updateScrollShadows();
+      timers.push(window.setTimeout(updateScrollShadows, 80));
+      timers.push(window.setTimeout(updateScrollShadows, SECTION_EXIT_MS + 80));
+    };
+
+    scheduleLayoutScrollShadowUpdate();
+    tabs.addEventListener("scroll", updateScrollShadows, { passive: true });
+    window.addEventListener("resize", scheduleLayoutScrollShadowUpdate);
+
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateScrollShadows);
+    observer?.observe(tabs);
+    Array.from(tabs.children).forEach((child) => observer?.observe(child));
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      tabs.removeEventListener("scroll", updateScrollShadows);
+      window.removeEventListener("resize", scheduleLayoutScrollShadowUpdate);
+      observer?.disconnect();
+    };
+  }, [
+    displayedMoment,
+    displayedSection,
+    normalizedPath,
+    usesEdgeRail,
+    visibleMomentaryTabs.length,
+    visibleSections.length,
+  ]);
+
+  useEffect(() => {
+    if (!shouldUseEdgeRail) {
+      setIsEdgeRailReady(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setIsEdgeRailReady(true), 860);
+    return () => window.clearTimeout(timer);
+  }, [shouldUseEdgeRail]);
 
   useEffect(() => {
     if (section) {
@@ -403,12 +512,24 @@ function App() {
   }
 
   const defaultSection = visibleSections[0];
+  const orbTabsClassName = [
+    "orb-ui-tabs",
+    orbTabScrollShadows.measured && orbTabScrollShadows.overflow && orbTabScrollShadows.up
+      ? "can-scroll-up"
+      : "",
+    orbTabScrollShadows.measured && orbTabScrollShadows.overflow && orbTabScrollShadows.down
+      ? "can-scroll-down"
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     // data-orb-mode / data-orb-section expose the layout state for the UI orbit.
     // SunEffect remains fullscreen so the WebGL layers keep stable coordinates.
     <main
       className="app-shell"
+      data-edge-rail={usesEdgeRail ? "active" : "inactive"}
       data-orb-mode={mode}
       data-orb-section={section ?? activeMoment ?? ""}
     >
@@ -416,17 +537,17 @@ function App() {
         anchorRef={orbAnchorRef}
         className="viewport-sun-field"
         quality="high"
-        intensity={1.22}
-        size={0.46}
+        intensity={usesEdgeRail ? 0.96 : 1.22}
+        size={usesEdgeRail ? 0.08 : 0.46}
         plasmaSpeed={0.32}
         plasmaScale={2.35}
-        coronaSize={1.7}
-        coronaDistortion={0.58}
-        rayStrength={0.52}
-        rayLength={1.75}
+        coronaSize={usesEdgeRail ? 0.8 : 1.7}
+        coronaDistortion={usesEdgeRail ? 0.36 : 0.58}
+        rayStrength={usesEdgeRail ? 0 : 0.52}
+        rayLength={usesEdgeRail ? 0.55 : 1.75}
         cursorInfluence={0.9}
-        bloomStrength={1.2}
-        bloomRadius={0.38}
+        bloomStrength={usesEdgeRail ? 0.45 : 1.2}
+        bloomRadius={usesEdgeRail ? 0.14 : 0.38}
         hoverTargetRadius={0.42}
         interactive={mode === "hub"}
         colorPalette={{
@@ -441,27 +562,34 @@ function App() {
 
       <h1 className="sr-only">{siteData.profile.name}</h1>
 
-      <OrbitCore
-        anchorRef={orbAnchorRef}
-        mode={mode}
-        orbLabel={mode === "section" ? "Volver al inicio" : orbLabel}
-        onOrbActivate={() =>
-          mode === "section" ? goHome() : defaultSection ? goToSection(defaultSection.id) : undefined
-        }
-      />
-
-      <SectionTabs
-        activeSection={section}
-        onSelect={goToSection}
-        mode={mode}
-        sections={visibleSections}
-      />
-      <MomentaryTabs
-        mode={mode}
-        tabs={visibleMomentaryTabs}
-        activeMoment={activeMoment}
-        onSelect={goToMoment}
-      />
+      <div className="orb-ui-rail">
+        <div ref={orbTabsRef} className={orbTabsClassName}>
+          <MomentaryTabs
+            mode={mode}
+            tabs={visibleMomentaryTabs}
+            activeMoment={activeMoment}
+            onSelect={goToMoment}
+          />
+          <SectionTabs
+            activeSection={section}
+            onSelect={goToSection}
+            mode={mode}
+            sections={visibleSections}
+          />
+        </div>
+        <OrbitCore
+          anchorRef={orbAnchorRef}
+          mode={mode}
+          orbLabel={mode === "section" ? "Volver al inicio" : orbLabel}
+          onOrbActivate={() =>
+            mode === "section"
+              ? goHome()
+              : defaultSection
+                ? goToSection(defaultSection.id)
+                : undefined
+          }
+        />
+      </div>
 
       <SectionPanel
         section={displayedSection}

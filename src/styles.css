@@ -1,8 +1,8 @@
 :root {
   color: #17324d;
   background: #f7fbff;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -67,8 +67,11 @@ body {
   min-width: 320px;
   min-height: 100%;
   overflow: hidden;
-  background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.92), rgba(220, 247, 245, 0.58)),
+  background: linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(220, 247, 245, 0.58)
+    ),
     linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 243, 210, 0.45)),
     repeating-linear-gradient(
       90deg,
@@ -202,9 +205,7 @@ a:focus-visible {
   display: inline-flex;
   height: 42px;
   justify-content: center;
-  transition:
-    transform 160ms ease,
-    border-color 160ms ease,
+  transition: transform 160ms ease, border-color 160ms ease,
     background 160ms ease;
   width: 42px;
 }
@@ -276,9 +277,7 @@ h1 {
   justify-content: center;
   min-height: 48px;
   padding: 0 20px;
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease;
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .primary-action {
@@ -345,8 +344,7 @@ h1 {
   translate: var(--orb-center-x) var(--orb-center-y);
   transform: translate3d(-50%, -50%, 0) scale(var(--orb-scale));
   transform-origin: 50% 50%;
-  transition:
-    translate 860ms var(--ease-glide),
+  transition: translate 860ms var(--ease-glide),
     transform 860ms var(--ease-glide);
   width: min(78vmin, 720px);
   will-change: translate, transform;
@@ -354,15 +352,14 @@ h1 {
 }
 
 .orbit-stage::before {
-  background:
-    conic-gradient(
-      from 120deg,
-      rgba(255, 200, 87, 0.28),
-      rgba(32, 178, 170, 0.34),
-      rgba(50, 120, 200, 0.24),
-      rgba(255, 127, 102, 0.34),
-      rgba(255, 200, 87, 0.28)
-    );
+  background: conic-gradient(
+    from 120deg,
+    rgba(255, 200, 87, 0.28),
+    rgba(32, 178, 170, 0.34),
+    rgba(50, 120, 200, 0.24),
+    rgba(255, 127, 102, 0.34),
+    rgba(255, 200, 87, 0.28)
+  );
   border-radius: 50%;
   content: "";
   inset: 8%;
@@ -422,9 +419,7 @@ h1 {
   height: 100%;
   padding: 0;
   position: relative;
-  transition:
-    filter 620ms var(--ease-glide),
-    transform 620ms var(--ease-glide);
+  transition: filter 620ms var(--ease-glide), transform 620ms var(--ease-glide);
   width: 100%;
   z-index: 2;
 }
@@ -439,6 +434,14 @@ h1 {
 .app-shell[data-orb-mode="hub"] .energy-orb:hover {
   filter: saturate(1.08) brightness(1.04);
   transform: translateY(-2px);
+}
+
+.orb-ui-rail {
+  display: contents;
+}
+
+.orb-ui-tabs {
+  display: contents;
 }
 
 /* --- Tab routing: section tabs, section title, section panel --- */
@@ -472,9 +475,7 @@ h1 {
 
 .moment-tab-orbit {
   animation: tab-orbit var(--moment-tab-orbit-duration) linear infinite;
-  transition:
-    translate 860ms var(--ease-glide),
-    opacity 260ms ease;
+  transition: translate 860ms var(--ease-glide), opacity 260ms ease;
   z-index: 6;
 }
 
@@ -530,12 +531,8 @@ h1 {
   position: absolute;
   overflow: hidden;
   transform: translate(-50%, -50%);
-  transition:
-    border-color 200ms ease,
-    background 200ms ease,
-    box-shadow 200ms ease,
-    min-width 240ms ease,
-    padding 240ms ease,
+  transition: border-color 200ms ease, background 200ms ease,
+    box-shadow 200ms ease, min-width 240ms ease, padding 240ms ease,
     width 240ms ease;
   white-space: nowrap;
   z-index: 7;
@@ -551,8 +548,11 @@ h1 {
 }
 
 .moment-tab {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 232, 0.82)),
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(255, 248, 232, 0.82)
+    ),
     rgba(255, 255, 255, 0.86);
   border-color: rgba(255, 127, 102, 0.2);
   box-shadow: 0 14px 34px rgba(255, 127, 102, 0.14);
@@ -617,9 +617,7 @@ h1 {
   max-width: 0;
   opacity: 0;
   overflow: hidden;
-  transition:
-    max-width 220ms ease,
-    opacity 160ms ease;
+  transition: max-width 220ms ease, opacity 160ms ease;
 }
 
 .app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover,
@@ -645,16 +643,22 @@ h1 {
 }
 
 .moment-tab:hover {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 244, 214, 0.92)),
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(255, 244, 214, 0.92)
+    ),
     rgba(255, 255, 255, 0.94);
   border-color: rgba(255, 127, 102, 0.38);
   box-shadow: 0 18px 40px rgba(255, 127, 102, 0.2);
 }
 
 .moment-tab.is-active {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 236, 188, 0.92)),
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(255, 236, 188, 0.92)
+    ),
     rgba(255, 255, 255, 0.96);
   border-color: rgba(255, 200, 87, 0.78);
   box-shadow: 0 20px 44px rgba(255, 200, 87, 0.26);
@@ -673,11 +677,10 @@ h1 {
    the orbital radius collapses to 0. The orbit rotation keeps running the whole
    time, so the hub orbit is never stopped or reset. */
 .app-shell[data-orb-mode="section"] .section-tab-orbit {
-  translate:
-    calc(100vw - var(--tab-corner-x))
+  translate: calc(100vw - var(--tab-corner-x))
     calc(
-      100dvh - var(--tab-corner-base) -
-        (3 - var(--tab-index)) * var(--tab-corner-step)
+      100dvh - var(--tab-corner-base) - (3 - var(--tab-index)) *
+        var(--tab-corner-step)
     );
 }
 
@@ -697,14 +700,12 @@ h1 {
    as the inner section tabs, then becomes an expanded corner stack. */
 .app-shell[data-orb-mode="section"] .moment-tab-orbit {
   opacity: 1;
-  translate:
-    calc(100vw - var(--tab-corner-x))
+  translate: calc(100vw - var(--tab-corner-x))
     calc(
-      100dvh - var(--tab-corner-base)
-        - 3 * var(--tab-corner-step)
-        - var(--moment-tab-corner-gap)
-        - (var(--moment-tab-corner-count) - 1 - var(--moment-tab-index, 0))
-          * var(--moment-tab-corner-step)
+      100dvh - var(--tab-corner-base) - 3 * var(--tab-corner-step) -
+        var(--moment-tab-corner-gap) -
+        (var(--moment-tab-corner-count) - 1 - var(--moment-tab-index, 0)) *
+        var(--moment-tab-corner-step)
     );
 }
 
@@ -760,9 +761,7 @@ h1 {
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  padding:
-    clamp(86px, 10vh, 102px)
-    clamp(20px, 4vw, 36px)
+  padding: clamp(86px, 10vh, 102px) clamp(20px, 4vw, 36px)
     clamp(34px, 5vh, 52px);
   transform: translateY(28px);
   transition: transform 540ms var(--ease-glide);
@@ -917,15 +916,15 @@ h1 {
 }
 
 .carousel-card {
+  --card-inset: 1px;
   --card-radius: clamp(16px, 1.8vw, 24px);
   background: transparent;
   background-clip: padding-box;
-  border: 0;
+  border: 1px solid rgba(32, 178, 170, 0.32);
   border-radius: var(--card-radius);
-  box-shadow: inset 0 0 0 1px rgba(32, 178, 170, 0.32);
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  inset: 0;
+  inset: var(--card-inset);
   isolation: isolate;
   max-height: 100%;
   max-width: none;
@@ -938,16 +937,13 @@ h1 {
   pointer-events: none;
   position: absolute;
   transform: none;
-  transition:
-    opacity 360ms ease,
-    border-color 200ms ease,
-    box-shadow 200ms ease;
+  transition: opacity 360ms ease, border-color 200ms ease;
   visibility: hidden;
   z-index: calc(10 - var(--card-depth));
 }
 
 .carousel-card.is-active {
-  box-shadow: inset 0 0 0 1px rgba(32, 178, 170, 0.42);
+  border-color: rgba(32, 178, 170, 0.42);
   opacity: 1;
   pointer-events: auto;
   visibility: visible;
@@ -1083,9 +1079,7 @@ h1 {
   justify-content: center;
   padding: 0;
   position: relative;
-  transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease,
+  transition: border-color 180ms ease, box-shadow 180ms ease,
     transform 180ms ease;
   width: 42px;
 }
@@ -1118,10 +1112,7 @@ h1 {
   cursor: pointer;
   height: 8px;
   padding: 0;
-  transition:
-    background 180ms ease,
-    transform 180ms ease,
-    width 180ms ease;
+  transition: background 180ms ease, transform 180ms ease, width 180ms ease;
   width: 8px;
 }
 
@@ -1307,9 +1298,7 @@ h1 {
   flex-direction: column;
   min-height: 270px;
   padding: 22px;
-  transition:
-    transform 180ms ease,
-    box-shadow 180ms ease,
+  transition: transform 180ms ease, box-shadow 180ms ease,
     border-color 180ms ease;
 }
 
@@ -1448,6 +1437,18 @@ h1 {
   }
 }
 
+@keyframes edge-rail-enter {
+  from {
+    opacity: 0;
+    transform: translateX(34px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @keyframes tab-label-marquee {
   0%,
   18% {
@@ -1465,9 +1466,16 @@ h1 {
 }
 
 .admin-shell {
-  background:
-    radial-gradient(circle at 18% 12%, rgba(55, 211, 190, 0.2), transparent 30%),
-    radial-gradient(circle at 84% 16%, rgba(255, 184, 77, 0.16), transparent 28%),
+  background: radial-gradient(
+      circle at 18% 12%,
+      rgba(55, 211, 190, 0.2),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 84% 16%,
+      rgba(255, 184, 77, 0.16),
+      transparent 28%
+    ),
     #090b12;
   color: var(--text);
   min-height: 100dvh;
@@ -1648,8 +1656,8 @@ h1 {
     max-width: var(--tab-label-max-width);
   }
 
-  .app-shell[data-orb-mode="section"] .section-tab,
-  .app-shell[data-orb-mode="section"] .moment-tab {
+  .app-shell[data-edge-rail="active"] .section-tab,
+  .app-shell[data-edge-rail="active"] .moment-tab {
     gap: 8px;
     justify-content: flex-start;
     min-width: var(--section-tab-expanded-width);
@@ -1657,8 +1665,8 @@ h1 {
     width: var(--section-tab-expanded-width);
   }
 
-  .app-shell[data-orb-mode="section"] .section-tab .tab-label,
-  .app-shell[data-orb-mode="section"] .moment-tab .tab-label {
+  .app-shell[data-edge-rail="active"] .section-tab .tab-label,
+  .app-shell[data-edge-rail="active"] .moment-tab .tab-label {
     max-width: var(--tab-label-max-width);
   }
 
@@ -1668,9 +1676,7 @@ h1 {
   }
 
   .section-panel-scroll {
-    padding:
-      clamp(92px, 13vh, 112px)
-      clamp(14px, 5vw, 28px)
+    padding: clamp(92px, 13vh, 112px) clamp(14px, 5vw, 28px)
       clamp(48px, 7vh, 72px);
   }
 
@@ -1680,6 +1686,259 @@ h1 {
 
   .standard-section-heading h2 {
     font-size: clamp(1.65rem, 8.5vw, 2.6rem);
+  }
+}
+
+@media (max-width: 1900px) {
+  :root {
+    --edge-orb-size: var(--moment-tab-icon-size);
+    --edge-rail-bottom: 22px;
+    --edge-rail-gap: 10px;
+    --edge-rail-inline-buffer: 18px;
+    --edge-rail-icon-padding: 8px;
+    --edge-rail-right: 32px;
+    --edge-rail-shadow-size: 28px;
+    --edge-rail-shadow-width: calc(
+      max(var(--tab-icon-size), var(--moment-tab-icon-size), var(--edge-orb-size)) +
+        var(--edge-rail-icon-padding) * 2
+    );
+    --edge-tab-motion: 260ms var(--ease-glide);
+    --edge-rail-top: clamp(72px, 12vh, 118px);
+    --edge-rail-width: calc(
+      max(
+          var(--section-tab-expanded-width),
+          var(--moment-tab-expanded-width),
+          var(--tab-icon-size),
+          var(--edge-orb-size)
+        ) + var(--edge-rail-inline-buffer)
+    );
+  }
+
+  .app-shell[data-edge-rail="active"] {
+    --orb-scale: 0.3;
+  }
+
+  .app-shell[data-edge-rail="active"] .orb-ui-rail {
+    align-items: flex-end;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--edge-rail-gap);
+    justify-content: center;
+    overflow: visible;
+    padding: calc(var(--edge-rail-bottom) + var(--edge-rail-shadow-size)) 0
+      calc(var(--edge-rail-bottom) + var(--edge-rail-shadow-size));
+    pointer-events: none;
+    position: fixed;
+    right: var(--edge-rail-right);
+    scrollbar-width: none;
+    top: 0;
+    width: var(--edge-rail-width);
+    z-index: 12;
+  }
+
+  .app-shell[data-edge-rail="active"] .orb-ui-tabs {
+    align-items: flex-end;
+    --edge-scroll-bottom-shadow: transparent;
+    --edge-scroll-top-shadow: transparent;
+    background: linear-gradient(
+          180deg,
+          var(--edge-scroll-top-shadow),
+          transparent
+        )
+        top right / var(--edge-rail-shadow-width) 26px no-repeat,
+      linear-gradient(0deg, var(--edge-scroll-bottom-shadow), transparent)
+        bottom right / var(--edge-rail-shadow-width) 26px no-repeat;
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    gap: var(--edge-rail-gap);
+    max-height: calc(
+      100dvh - (var(--edge-rail-bottom) + var(--edge-rail-shadow-size)) * 2 -
+        var(--edge-orb-size) - var(--edge-rail-gap)
+    );
+    min-height: 0;
+    overflow-x: visible;
+    overflow-y: auto;
+    padding: var(--edge-rail-shadow-size) 0 var(--edge-rail-shadow-size);
+    pointer-events: auto;
+    scrollbar-width: none;
+    width: 100%;
+  }
+
+  .app-shell[data-edge-rail="active"] .orb-ui-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-shell[data-edge-rail="active"] .orb-ui-tabs.can-scroll-up {
+    --edge-scroll-top-shadow: rgba(23, 50, 77, 0.18);
+  }
+
+  .app-shell[data-edge-rail="active"] .orb-ui-tabs.can-scroll-down {
+    --edge-scroll-bottom-shadow: rgba(23, 50, 77, 0.18);
+  }
+
+  .app-shell[data-edge-rail="active"] .momentary-tabs,
+  .app-shell[data-edge-rail="active"] .section-tabs {
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    gap: var(--edge-rail-gap);
+    pointer-events: none;
+    width: 100%;
+  }
+
+  .app-shell[data-edge-rail="active"] .momentary-tabs {
+    order: 0;
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tabs {
+    order: 1;
+  }
+
+  .app-shell[data-edge-rail="active"] .orbit-stage {
+    aspect-ratio: 1;
+    contain: layout paint;
+    flex: 0 0 var(--edge-orb-size);
+    height: var(--edge-orb-size);
+    margin-right: calc((var(--edge-rail-shadow-width) - var(--edge-orb-size)) / 2);
+    order: 2;
+    overflow: hidden;
+    position: relative;
+    translate: none;
+    transform: none;
+    width: var(--edge-orb-size);
+  }
+
+  .app-shell[data-edge-rail="active"] .energy-orb-wrap {
+    aspect-ratio: 1;
+    height: 100%;
+    max-width: none;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab-orbit {
+    animation: none;
+    display: flex;
+    height: auto;
+    justify-content: center;
+    order: var(--tab-index);
+    position: static;
+    translate: none;
+    transform: none;
+    width: var(--edge-rail-shadow-width);
+  }
+
+  .app-shell[data-edge-rail="active"] .moment-tab-orbit {
+    animation: none;
+    display: flex;
+    height: auto;
+    justify-content: center;
+    order: var(--moment-tab-index);
+    position: static;
+    translate: none;
+    transform: none;
+    width: var(--edge-rail-shadow-width);
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab-radius,
+  .app-shell[data-edge-rail="active"] .moment-tab-radius,
+  .app-shell[data-edge-rail="active"] .section-tab-level,
+  .app-shell[data-edge-rail="active"] .moment-tab-level {
+    animation: none;
+    height: auto;
+    position: static;
+    transform: none;
+    width: auto;
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab,
+  .app-shell[data-edge-rail="active"] .moment-tab {
+    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.52);
+    box-shadow: 0 10px 24px rgba(30, 93, 118, 0.08);
+    gap: 0;
+    justify-content: center;
+    padding: 0;
+    position: relative;
+    pointer-events: auto;
+    transform: none;
+    transition:
+      border-color 200ms ease,
+      background 200ms ease,
+      box-shadow 200ms ease,
+      min-width var(--edge-tab-motion),
+      padding var(--edge-tab-motion),
+      transform var(--edge-tab-motion),
+      width var(--edge-tab-motion);
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab {
+    border-color: rgba(32, 178, 170, 0.32);
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab.is-active {
+    border-color: rgba(255, 127, 102, 0.62);
+    box-shadow: 0 12px 28px rgba(255, 127, 102, 0.12);
+  }
+
+  .app-shell[data-edge-rail="active"] .moment-tab {
+    border-color: rgba(255, 127, 102, 0.24);
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab {
+    min-width: var(--tab-icon-size);
+    width: var(--tab-icon-size);
+  }
+
+  .app-shell[data-edge-rail="active"] .moment-tab {
+    min-width: var(--moment-tab-icon-size);
+    width: var(--moment-tab-icon-size);
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab .tab-label,
+  .app-shell[data-edge-rail="active"] .moment-tab .tab-label {
+    max-width: 0;
+    opacity: 0;
+    transition: max-width 220ms ease, opacity 160ms ease;
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab.is-pointer-hover,
+  .app-shell[data-edge-rail="active"] .section-tab:focus-visible,
+  .app-shell[data-edge-rail="active"] .moment-tab.is-pointer-hover,
+  .app-shell[data-edge-rail="active"] .moment-tab:focus-visible {
+    background: #ffffff;
+    gap: 9px;
+    justify-content: flex-start;
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab.is-pointer-hover,
+  .app-shell[data-edge-rail="active"] .section-tab:focus-visible {
+    min-width: var(--section-tab-expanded-width);
+    padding: 0 17px;
+    transform: translateX(
+      calc((var(--edge-rail-shadow-width) - var(--section-tab-expanded-width)) / 2)
+    );
+    width: var(--section-tab-expanded-width);
+  }
+
+  .app-shell[data-edge-rail="active"] .moment-tab.is-pointer-hover,
+  .app-shell[data-edge-rail="active"] .moment-tab:focus-visible {
+    min-width: var(--moment-tab-expanded-width);
+    padding: 0 14px;
+    transform: translateX(
+      calc((var(--edge-rail-shadow-width) - var(--moment-tab-expanded-width)) / 2)
+    );
+    width: var(--moment-tab-expanded-width);
+  }
+
+  .app-shell[data-edge-rail="active"] .section-tab.is-pointer-hover .tab-label,
+  .app-shell[data-edge-rail="active"] .section-tab:focus-visible .tab-label,
+  .app-shell[data-edge-rail="active"] .moment-tab.is-pointer-hover .tab-label,
+  .app-shell[data-edge-rail="active"] .moment-tab:focus-visible .tab-label {
+    max-width: var(--tab-label-max-width);
+    opacity: 1;
   }
 }
 
@@ -1693,3 +1952,4 @@ h1 {
     transition-duration: 1ms !important;
   }
 }
+
