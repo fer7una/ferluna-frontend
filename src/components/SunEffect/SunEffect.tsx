@@ -69,7 +69,7 @@ export function SunEffect({
       interactive: pointerEnabled,
       paused: paused || reducedMotion,
       intensity: clamp(intensity, 0, 3),
-      size: clamp(size, 0.2, 2.2),
+      size: clamp(size, 0.08, 2.2),
       plasmaSpeed: clamp(plasmaSpeed, 0, 2),
       plasmaScale: clamp(plasmaScale, 0.5, 6),
       coronaSize: clamp(coronaSize, 0.8, 2.2),
