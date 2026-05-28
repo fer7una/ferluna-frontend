@@ -25,6 +25,7 @@
   --orb-center-y: 50dvh;
   --orb-scale: 1;
   --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+  --orbit-glide-duration: 860ms;
   /* Section tabs: inner orbit for stable sections, outer orbit for momentary items. */
   --tab-hub-radius: min(24vmin, 224px);
   --tab-hub-ring-size: min(48vmin, 448px);
@@ -129,9 +130,11 @@ a:focus-visible {
   position: relative;
 }
 
-.app-shell[data-orb-mode="section"] {
-  --orb-center-x: calc(100vw - var(--orb-corner-inset));
-  --orb-center-y: calc(100dvh - var(--orb-corner-inset));
+.app-shell[data-orb-phase="gliding-to-section"],
+.app-shell[data-orb-phase="rail"],
+.app-shell[data-orb-phase="preparing-hub-glide"] {
+  --orb-center-x: calc(100vw - var(--orb-corner-x));
+  --orb-center-y: calc(100dvh - var(--orb-corner-y));
   --orb-scale: var(--orb-corner-scale);
 }
 
@@ -146,7 +149,9 @@ a:focus-visible {
   z-index: 4;
 }
 
-.app-shell[data-orb-mode="section"] .viewport-sun-field {
+.app-shell[data-orb-phase="gliding-to-section"] .viewport-sun-field,
+.app-shell[data-orb-phase="rail"] .viewport-sun-field,
+.app-shell[data-orb-phase="preparing-hub-glide"] .viewport-sun-field {
   height: 100vh;
   height: 100dvh;
   inset: 0;
@@ -155,7 +160,9 @@ a:focus-visible {
   z-index: 6;
 }
 
-.app-shell[data-orb-mode="section"] .viewport-sun-field * {
+.app-shell[data-orb-phase="gliding-to-section"] .viewport-sun-field *,
+.app-shell[data-orb-phase="rail"] .viewport-sun-field *,
+.app-shell[data-orb-phase="preparing-hub-glide"] .viewport-sun-field * {
   pointer-events: none !important;
 }
 
@@ -344,8 +351,8 @@ h1 {
   translate: var(--orb-center-x) var(--orb-center-y);
   transform: translate3d(-50%, -50%, 0) scale(var(--orb-scale));
   transform-origin: 50% 50%;
-  transition: translate 860ms var(--ease-glide),
-    transform 860ms var(--ease-glide);
+  transition: translate var(--orbit-glide-duration) var(--ease-glide),
+    transform var(--orbit-glide-duration) var(--ease-glide);
   width: min(78vmin, 720px);
   will-change: translate, transform;
   z-index: 6;
@@ -431,7 +438,7 @@ h1 {
   position: absolute;
 }
 
-.app-shell[data-orb-mode="hub"] .energy-orb:hover {
+.app-shell[data-orb-phase="hub"] .energy-orb:hover {
   filter: saturate(1.08) brightness(1.04);
   transform: translateY(-2px);
 }
@@ -463,7 +470,7 @@ h1 {
   top: 0;
   translate: var(--orb-center-x) var(--orb-center-y);
   transform: rotate(var(--orbit-angle));
-  transition: translate 860ms var(--ease-glide);
+  transition: translate var(--orbit-glide-duration) var(--ease-glide);
   width: 0;
   will-change: translate, transform;
   z-index: 7;
@@ -475,8 +482,16 @@ h1 {
 
 .moment-tab-orbit {
   animation: tab-orbit var(--moment-tab-orbit-duration) linear infinite;
-  transition: translate 860ms var(--ease-glide), opacity 260ms ease;
-  z-index: 6;
+  transition: translate var(--orbit-glide-duration) var(--ease-glide),
+    opacity 260ms ease;
+  z-index: 7;
+}
+
+.section-tab-orbit:has(.section-tab:hover),
+.section-tab-orbit:has(.section-tab:focus-visible),
+.moment-tab-orbit:has(.moment-tab:hover),
+.moment-tab-orbit:has(.moment-tab:focus-visible) {
+  z-index: 30;
 }
 
 /* Carries the orbital radius, on its own element so it can transition (collapse
@@ -485,7 +500,7 @@ h1 {
 .moment-tab-radius {
   height: 0;
   position: absolute;
-  transition: transform 860ms var(--ease-glide);
+  transition: transform var(--orbit-glide-duration) var(--ease-glide);
   width: 0;
   will-change: transform;
 }
@@ -574,14 +589,16 @@ h1 {
   display: block;
 }
 
-.app-shell[data-orb-mode="hub"] .section-tab {
+.app-shell[data-orb-phase="hub"] .section-tab,
+.app-shell[data-orb-phase="gliding-to-hub"] .section-tab {
   gap: 0;
   min-width: var(--tab-icon-size);
   padding: 0;
   width: var(--tab-icon-size);
 }
 
-.app-shell[data-orb-mode="hub"] .moment-tab {
+.app-shell[data-orb-phase="hub"] .moment-tab,
+.app-shell[data-orb-phase="gliding-to-hub"] .moment-tab {
   gap: 0;
   justify-content: center;
   min-width: var(--moment-tab-icon-size);
@@ -589,7 +606,8 @@ h1 {
   width: var(--moment-tab-icon-size);
 }
 
-.app-shell[data-orb-mode="hub"] .section-tab svg,
+.app-shell[data-orb-phase="hub"] .section-tab svg,
+.app-shell[data-orb-phase="gliding-to-hub"] .section-tab svg,
 .moment-tab svg {
   flex: 0 0 auto;
 }
@@ -612,32 +630,34 @@ h1 {
   animation: tab-label-marquee 5.6s ease-in-out infinite;
 }
 
-.app-shell[data-orb-mode="hub"] .section-tab .tab-label,
-.app-shell[data-orb-mode="hub"] .moment-tab .tab-label {
+.app-shell[data-orb-phase="hub"] .section-tab .tab-label,
+.app-shell[data-orb-phase="hub"] .moment-tab .tab-label,
+.app-shell[data-orb-phase="gliding-to-hub"] .section-tab .tab-label,
+.app-shell[data-orb-phase="gliding-to-hub"] .moment-tab .tab-label {
   max-width: 0;
   opacity: 0;
   overflow: hidden;
   transition: max-width 220ms ease, opacity 160ms ease;
 }
 
-.app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover,
-.app-shell[data-orb-mode="hub"] .section-tab:focus-visible,
-.app-shell[data-orb-mode="hub"] .moment-tab.is-pointer-hover,
-.app-shell[data-orb-mode="hub"] .moment-tab:focus-visible {
+.app-shell[data-orb-phase="hub"] .section-tab.is-pointer-hover,
+.app-shell[data-orb-phase="hub"] .section-tab:focus-visible,
+.app-shell[data-orb-phase="hub"] .moment-tab.is-pointer-hover,
+.app-shell[data-orb-phase="hub"] .moment-tab:focus-visible {
   gap: 9px;
   justify-content: flex-start;
   padding: 0 14px;
 }
 
-.app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover,
-.app-shell[data-orb-mode="hub"] .section-tab:focus-visible {
+.app-shell[data-orb-phase="hub"] .section-tab.is-pointer-hover,
+.app-shell[data-orb-phase="hub"] .section-tab:focus-visible {
   min-width: var(--section-tab-expanded-width);
   padding: 0 17px;
   width: var(--section-tab-expanded-width);
 }
 
-.app-shell[data-orb-mode="hub"] .moment-tab.is-pointer-hover,
-.app-shell[data-orb-mode="hub"] .moment-tab:focus-visible {
+.app-shell[data-orb-phase="hub"] .moment-tab.is-pointer-hover,
+.app-shell[data-orb-phase="hub"] .moment-tab:focus-visible {
   min-width: calc(var(--moment-tab-expanded-width) + 10px);
   width: calc(var(--moment-tab-expanded-width) + 10px);
 }
@@ -665,10 +685,10 @@ h1 {
   color: #5a3614;
 }
 
-.app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover .tab-label,
-.app-shell[data-orb-mode="hub"] .section-tab:focus-visible .tab-label,
-.app-shell[data-orb-mode="hub"] .moment-tab.is-pointer-hover .tab-label,
-.app-shell[data-orb-mode="hub"] .moment-tab:focus-visible .tab-label {
+.app-shell[data-orb-phase="hub"] .section-tab.is-pointer-hover .tab-label,
+.app-shell[data-orb-phase="hub"] .section-tab:focus-visible .tab-label,
+.app-shell[data-orb-phase="hub"] .moment-tab.is-pointer-hover .tab-label,
+.app-shell[data-orb-phase="hub"] .moment-tab:focus-visible .tab-label {
   max-width: var(--tab-label-max-width);
   opacity: 1;
 }
@@ -676,7 +696,9 @@ h1 {
 /* Section mode: each wrapper glides to its stacked corner slot (left/top) while
    the orbital radius collapses to 0. The orbit rotation keeps running the whole
    time, so the hub orbit is never stopped or reset. */
-.app-shell[data-orb-mode="section"] .section-tab-orbit {
+.app-shell[data-orb-phase="gliding-to-section"] .section-tab-orbit,
+.app-shell[data-orb-phase="rail"] .section-tab-orbit,
+.app-shell[data-orb-phase="preparing-hub-glide"] .section-tab-orbit {
   translate: calc(100vw - var(--tab-corner-x))
     calc(
       100dvh - var(--tab-corner-base) - (3 - var(--tab-index)) *
@@ -684,21 +706,50 @@ h1 {
     );
 }
 
-.app-shell[data-orb-mode="section"] .section-tab-radius {
+.app-shell[data-orb-phase="gliding-to-section"] .section-tab-radius,
+.app-shell[data-orb-phase="rail"] .section-tab-radius,
+.app-shell[data-orb-phase="preparing-hub-glide"] .section-tab-radius {
   transform: translateX(0);
 }
 
-.app-shell[data-orb-mode="section"] .moment-tab {
-  gap: 9px;
-  justify-content: flex-start;
-  min-width: var(--moment-tab-expanded-width);
-  padding: 0 14px;
-  width: var(--moment-tab-expanded-width);
+/* Corner phases: tabs glide to the edge column as fixed orbit elements.
+   The rail phase below owns the flex/scroll layout after the glide. */
+.app-shell[data-orb-phase="gliding-to-section"] .section-tab,
+.app-shell[data-orb-phase="rail"] .section-tab,
+.app-shell[data-orb-phase="preparing-hub-glide"] .section-tab {
+  gap: 0;
+  justify-content: center;
+  min-width: var(--tab-icon-size);
+  padding: 0;
+  width: var(--tab-icon-size);
+}
+
+.app-shell[data-orb-phase="gliding-to-section"] .moment-tab,
+.app-shell[data-orb-phase="rail"] .moment-tab,
+.app-shell[data-orb-phase="preparing-hub-glide"] .moment-tab {
+  gap: 0;
+  justify-content: center;
+  min-width: var(--moment-tab-icon-size);
+  padding: 0;
+  width: var(--moment-tab-icon-size);
+}
+
+.app-shell[data-orb-phase="gliding-to-section"] .section-tab .tab-label,
+.app-shell[data-orb-phase="gliding-to-section"] .moment-tab .tab-label,
+.app-shell[data-orb-phase="rail"] .section-tab .tab-label,
+.app-shell[data-orb-phase="rail"] .moment-tab .tab-label,
+.app-shell[data-orb-phase="preparing-hub-glide"] .section-tab .tab-label,
+.app-shell[data-orb-phase="preparing-hub-glide"] .moment-tab .tab-label {
+  max-width: 0;
+  opacity: 0;
+  transition: max-width 220ms ease, opacity 160ms ease;
 }
 
 /* Section mode: the moment-tab orbit performs the same orbit-to-corner glide
    as the inner section tabs, then becomes an expanded corner stack. */
-.app-shell[data-orb-mode="section"] .moment-tab-orbit {
+.app-shell[data-orb-phase="gliding-to-section"] .moment-tab-orbit,
+.app-shell[data-orb-phase="rail"] .moment-tab-orbit,
+.app-shell[data-orb-phase="preparing-hub-glide"] .moment-tab-orbit {
   opacity: 1;
   translate: calc(100vw - var(--tab-corner-x))
     calc(
@@ -709,8 +760,18 @@ h1 {
     );
 }
 
-.app-shell[data-orb-mode="section"] .moment-tab-radius {
+.app-shell[data-orb-phase="gliding-to-section"] .moment-tab-radius,
+.app-shell[data-orb-phase="rail"] .moment-tab-radius,
+.app-shell[data-orb-phase="preparing-hub-glide"] .moment-tab-radius {
   transform: translateX(0);
+}
+
+.app-shell[data-orb-phase="preparing-hub-glide"] .orbit-stage,
+.app-shell[data-orb-phase="preparing-hub-glide"] .section-tab-orbit,
+.app-shell[data-orb-phase="preparing-hub-glide"] .moment-tab-orbit,
+.app-shell[data-orb-phase="preparing-hub-glide"] .section-tab-radius,
+.app-shell[data-orb-phase="preparing-hub-glide"] .moment-tab-radius {
+  transition: none;
 }
 
 .section-tab:hover {
@@ -763,13 +824,19 @@ h1 {
   overflow: hidden;
   padding: clamp(86px, 10vh, 102px) clamp(20px, 4vw, 36px)
     clamp(34px, 5vh, 52px);
-  transform: translateY(28px);
+  transform: translateX(-42px);
   transition: transform 540ms var(--ease-glide);
 }
 
 .section-panel.is-open .section-panel-scroll {
-  transform: translateY(0);
+  transform: translateX(0);
   transition-delay: 200ms;
+}
+
+.app-shell[data-orb-phase="gliding-to-section"] .section-panel-scroll,
+.app-shell[data-orb-phase="rail"] .section-panel-scroll,
+.app-shell[data-orb-phase="preparing-hub-glide"] .section-panel-scroll {
+  padding-right: max(clamp(20px, 4vw, 36px), var(--edge-content-safe-right));
 }
 
 .active-section-band {
@@ -1437,18 +1504,6 @@ h1 {
   }
 }
 
-@keyframes edge-rail-enter {
-  from {
-    opacity: 0;
-    transform: translateX(34px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 @keyframes tab-label-marquee {
   0%,
   18% {
@@ -1613,11 +1668,6 @@ h1 {
     --tab-hub-ring-size: clamp(236px, 68vmin, 320px);
     --moment-tab-hub-radius: clamp(166px, 48vmin, 218px);
     --moment-tab-ring-size: clamp(332px, 96vmin, 436px);
-    --tab-corner-x: 82px;
-    --tab-corner-base: 168px;
-    --tab-corner-step: 56px;
-    --moment-tab-corner-gap: 48px;
-    --moment-tab-corner-step: 46px;
     --section-tab-expanded-width: 132px;
     --moment-tab-expanded-width: 132px;
     --tab-icon-size: 48px;
@@ -1649,25 +1699,33 @@ h1 {
     width: var(--moment-tab-icon-size);
   }
 
-  .app-shell[data-orb-mode="hub"] .section-tab.is-pointer-hover .tab-label,
-  .app-shell[data-orb-mode="hub"] .section-tab:focus-visible .tab-label,
-  .app-shell[data-orb-mode="hub"] .moment-tab.is-pointer-hover .tab-label,
-  .app-shell[data-orb-mode="hub"] .moment-tab:focus-visible .tab-label {
+  .app-shell[data-orb-phase="hub"] .section-tab.is-pointer-hover .tab-label,
+  .app-shell[data-orb-phase="hub"] .section-tab:focus-visible .tab-label,
+  .app-shell[data-orb-phase="hub"] .moment-tab.is-pointer-hover .tab-label,
+  .app-shell[data-orb-phase="hub"] .moment-tab:focus-visible .tab-label {
     max-width: var(--tab-label-max-width);
   }
 
-  .app-shell[data-edge-rail="active"] .section-tab,
-  .app-shell[data-edge-rail="active"] .moment-tab {
-    gap: 8px;
-    justify-content: flex-start;
-    min-width: var(--section-tab-expanded-width);
-    padding: 0 12px;
-    width: var(--section-tab-expanded-width);
+  .app-shell[data-orb-phase="rail"] .section-tab,
+  .app-shell[data-orb-phase="rail"] .moment-tab {
+    gap: 0;
+    justify-content: center;
+    padding: 0;
   }
 
-  .app-shell[data-edge-rail="active"] .section-tab .tab-label,
-  .app-shell[data-edge-rail="active"] .moment-tab .tab-label {
-    max-width: var(--tab-label-max-width);
+  .app-shell[data-orb-phase="rail"] .section-tab {
+    min-width: var(--tab-icon-size);
+    width: var(--tab-icon-size);
+  }
+
+  .app-shell[data-orb-phase="rail"] .moment-tab {
+    min-width: var(--moment-tab-icon-size);
+    width: var(--moment-tab-icon-size);
+  }
+
+  .app-shell[data-orb-phase="rail"] .section-tab .tab-label,
+  .app-shell[data-orb-phase="rail"] .moment-tab .tab-label {
+    max-width: 0;
   }
 
   .topbar {
@@ -1689,232 +1747,391 @@ h1 {
   }
 }
 
-@media (max-width: 1900px) {
+:root {
+  --edge-orb-size: var(--moment-tab-icon-size);
+  --edge-rail-bottom: 22px;
+  --edge-rail-gap: 10px;
+  --edge-rail-inline-buffer: 18px;
+  --edge-rail-icon-padding: 8px;
+  --edge-rail-right: 32px;
+  --edge-rail-clip-gutter: 10px;
+  --edge-rail-frame-right: calc(
+    var(--edge-rail-right) - var(--edge-rail-clip-gutter)
+  );
+  --edge-rail-shadow-size: 28px;
+  --edge-rail-shadow-width: calc(
+    max(var(--tab-icon-size), var(--moment-tab-icon-size), var(--edge-orb-size)) +
+      var(--edge-rail-icon-padding) * 2
+  );
+  --edge-tab-motion: 260ms var(--ease-glide);
+  --edge-orb-anchor-width: var(--edge-rail-shadow-width);
+  --edge-orb-rail-right: calc(
+    var(--edge-orb-anchor-width) / 2 + var(--edge-rail-clip-gutter)
+  );
+  --edge-orb-top-gap: var(--edge-rail-gap);
+  --edge-scroll-shadow-width: var(--edge-rail-shadow-width);
+  --edge-scroll-shadow-alpha: 0.1;
+  --edge-scroll-shadow-height: 20px;
+  --edge-content-safe-gap: clamp(18px, 2.2vw, 32px);
+  --edge-rail-top: clamp(72px, 12vh, 118px);
+  --edge-rail-width: calc(
+    max(
+        var(--section-tab-expanded-width),
+        var(--moment-tab-expanded-width),
+        var(--tab-icon-size),
+        var(--edge-orb-size)
+      ) + var(--edge-rail-inline-buffer)
+  );
+  --edge-content-safe-right: calc(
+    var(--edge-rail-right) + var(--edge-rail-width) +
+      var(--edge-content-safe-gap)
+  );
+
+  /* Glide target positions derived from the rail's flex-end layout so the orbit
+     translate lands pixel-aligned with where the rail-flex will place each
+     element. Eliminates the snap at the 860ms swap. */
+  --orb-corner-x: calc(var(--edge-rail-right) + var(--edge-orb-anchor-width) / 2);
+  --orb-corner-y: calc(
+    var(--edge-rail-bottom) + var(--edge-rail-shadow-size) +
+      var(--edge-orb-size) / 2
+  );
+  --tab-corner-x: var(--orb-corner-x);
+  --tab-corner-base: calc(
+    var(--edge-rail-bottom) + var(--edge-rail-shadow-size) +
+      var(--edge-orb-size) + var(--edge-orb-top-gap) +
+      var(--tab-icon-size) / 2
+  );
+  --tab-corner-step: calc(var(--tab-icon-size) + var(--edge-rail-gap));
+  --moment-tab-corner-gap: calc(
+    var(--tab-icon-size) / 2 + var(--edge-rail-gap) +
+      var(--moment-tab-icon-size) / 2
+  );
+  --moment-tab-corner-step: calc(
+    var(--moment-tab-icon-size) + var(--edge-rail-gap)
+  );
+}
+
+@media (max-width: 720px) {
   :root {
-    --edge-orb-size: var(--moment-tab-icon-size);
-    --edge-rail-bottom: 22px;
-    --edge-rail-gap: 10px;
-    --edge-rail-inline-buffer: 18px;
-    --edge-rail-icon-padding: 8px;
-    --edge-rail-right: 32px;
-    --edge-rail-shadow-size: 28px;
-    --edge-rail-shadow-width: calc(
-      max(var(--tab-icon-size), var(--moment-tab-icon-size), var(--edge-orb-size)) +
-        var(--edge-rail-icon-padding) * 2
-    );
-    --edge-tab-motion: 260ms var(--ease-glide);
-    --edge-rail-top: clamp(72px, 12vh, 118px);
-    --edge-rail-width: calc(
-      max(
-          var(--section-tab-expanded-width),
-          var(--moment-tab-expanded-width),
-          var(--tab-icon-size),
-          var(--edge-orb-size)
-        ) + var(--edge-rail-inline-buffer)
+    --edge-content-safe-gap: 12px;
+    --edge-content-safe-right: calc(
+      var(--edge-rail-right) + var(--edge-rail-shadow-width) +
+        var(--edge-rail-inline-buffer) + var(--edge-content-safe-gap)
     );
   }
+}
 
-  .app-shell[data-edge-rail="active"] {
-    --orb-scale: 0.3;
-  }
+/* ===== Edge rail: active only after the fixed-position glide has completed.
+   The rail owns overflow, scroll shadows and hover expansion; glide phases
+   remain fixed-position so entry/exit motion stays reversible. ===== */
 
-  .app-shell[data-edge-rail="active"] .orb-ui-rail {
-    align-items: flex-end;
-    bottom: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--edge-rail-gap);
-    justify-content: center;
-    overflow: visible;
-    padding: calc(var(--edge-rail-bottom) + var(--edge-rail-shadow-size)) 0
-      calc(var(--edge-rail-bottom) + var(--edge-rail-shadow-size));
-    pointer-events: none;
-    position: fixed;
-    right: var(--edge-rail-right);
-    scrollbar-width: none;
-    top: 0;
-    width: var(--edge-rail-width);
-    z-index: 12;
-  }
+.app-shell[data-orb-phase="rail"] {
+  --orb-scale: var(--orb-corner-scale);
+}
 
-  .app-shell[data-edge-rail="active"] .orb-ui-tabs {
-    align-items: flex-end;
-    --edge-scroll-bottom-shadow: transparent;
-    --edge-scroll-top-shadow: transparent;
-    background: linear-gradient(
-          180deg,
-          var(--edge-scroll-top-shadow),
-          transparent
-        )
-        top right / var(--edge-rail-shadow-width) 26px no-repeat,
-      linear-gradient(0deg, var(--edge-scroll-bottom-shadow), transparent)
-        bottom right / var(--edge-rail-shadow-width) 26px no-repeat;
-    display: flex;
-    flex: 0 1 auto;
-    flex-direction: column;
-    gap: var(--edge-rail-gap);
-    max-height: calc(
-      100dvh - (var(--edge-rail-bottom) + var(--edge-rail-shadow-size)) * 2 -
-        var(--edge-orb-size) - var(--edge-rail-gap)
+.app-shell[data-orb-phase="rail"] .orb-ui-rail {
+  align-items: flex-end;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--edge-rail-gap);
+  /* flex-end anchors the orb to the rail's bottom edge, exactly where the
+     orbit translate lands at the end of the 860ms glide. Section/moment tabs
+     stack upward from there with deterministic Y, matching the glide target
+     computed in --tab-corner-base / --moment-tab-corner-* below. */
+  justify-content: flex-end;
+  overflow: visible;
+  padding: calc(var(--edge-rail-bottom) + var(--edge-rail-shadow-size)) 0
+    calc(var(--edge-rail-bottom) + var(--edge-rail-shadow-size));
+  pointer-events: none;
+  position: fixed;
+  right: var(--edge-rail-frame-right);
+  scrollbar-width: none;
+  top: 0;
+  width: calc(var(--edge-rail-width) + var(--edge-rail-clip-gutter));
+  z-index: 12;
+}
+
+.app-shell[data-orb-phase="rail"] .orb-ui-tabs {
+  align-items: flex-end;
+  --edge-scroll-bottom-shadow: transparent;
+  --edge-scroll-top-shadow: transparent;
+  backdrop-filter: none;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: var(--edge-rail-gap);
+  margin-bottom: calc(var(--edge-orb-size) + var(--edge-orb-top-gap));
+  max-height: calc(
+    100dvh - (var(--edge-rail-bottom) + var(--edge-rail-shadow-size)) * 2 -
+      var(--edge-orb-size) - var(--edge-orb-top-gap)
+  );
+  min-height: 0;
+  overflow-x: visible;
+  overflow-y: auto;
+  padding: var(--edge-rail-shadow-size) var(--edge-rail-clip-gutter)
+    var(--edge-rail-shadow-size) 0;
+  pointer-events: auto;
+  scrollbar-width: none;
+  width: 100%;
+}
+
+.app-shell[data-orb-phase="rail"] .orb-ui-tabs.can-scroll-up {
+  --edge-scroll-top-shadow: rgba(
+    23,
+    50,
+    77,
+    var(--edge-scroll-shadow-alpha)
+  );
+  background-image: linear-gradient(
+      180deg,
+      var(--edge-scroll-top-shadow),
+      transparent
     );
-    min-height: 0;
-    overflow-x: visible;
-    overflow-y: auto;
-    padding: var(--edge-rail-shadow-size) 0 var(--edge-rail-shadow-size);
-    pointer-events: auto;
-    scrollbar-width: none;
-    width: 100%;
+  background-position: right var(--edge-rail-clip-gutter) top;
+  background-repeat: no-repeat;
+  background-size: var(--edge-scroll-shadow-width)
+    var(--edge-scroll-shadow-height);
+}
+
+.app-shell[data-orb-phase="rail"] .orb-ui-tabs.can-scroll-down {
+  --edge-scroll-bottom-shadow: rgba(
+    23,
+    50,
+    77,
+    var(--edge-scroll-shadow-alpha)
+  );
+  background-image: linear-gradient(
+    0deg,
+    var(--edge-scroll-bottom-shadow),
+    transparent
+  );
+  background-position: right var(--edge-rail-clip-gutter) bottom;
+  background-repeat: no-repeat;
+  background-size: var(--edge-scroll-shadow-width)
+    var(--edge-scroll-shadow-height);
+}
+
+.app-shell[data-orb-phase="rail"] .orb-ui-tabs.can-scroll-up.can-scroll-down {
+  background-image: linear-gradient(
+      180deg,
+      var(--edge-scroll-top-shadow),
+      transparent
+    ),
+    linear-gradient(0deg, var(--edge-scroll-bottom-shadow), transparent);
+  background-position: right var(--edge-rail-clip-gutter) top,
+    right var(--edge-rail-clip-gutter) bottom;
+  background-repeat: no-repeat;
+  background-size: var(--edge-scroll-shadow-width)
+      var(--edge-scroll-shadow-height),
+    var(--edge-scroll-shadow-width) var(--edge-scroll-shadow-height);
+}
+
+.app-shell[data-orb-phase="rail"] .orb-ui-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.app-shell[data-orb-phase="rail"] .momentary-tabs,
+.app-shell[data-orb-phase="rail"] .section-tabs {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: var(--edge-rail-gap);
+  pointer-events: none;
+  width: 100%;
+}
+
+.app-shell[data-orb-phase="rail"] .momentary-tabs {
+  order: 0;
+}
+
+.app-shell[data-orb-phase="rail"] .section-tabs {
+  order: 1;
+}
+
+.app-shell[data-orb-phase="rail"] .orbit-stage {
+  aspect-ratio: 1;
+  bottom: calc(
+    var(--edge-rail-bottom) + var(--edge-rail-shadow-size) +
+      var(--edge-orb-size) / 2
+  );
+  flex: none;
+  height: min(78vmin, 720px);
+  left: auto;
+  margin-right: 0;
+  order: 2;
+  overflow: visible;
+  position: absolute;
+  right: var(--edge-orb-rail-right);
+  top: auto;
+  /* Same rendered box as the glide endpoint, expressed from the rail's
+     right/bottom anchor instead of viewport translate coordinates. */
+  transition: none;
+  translate: none;
+  transform: translate3d(50%, 50%, 0) scale(var(--orb-scale));
+  width: min(78vmin, 720px);
+}
+
+.app-shell[data-orb-phase="rail"] .energy-orb-wrap {
+  aspect-ratio: 1;
+  height: auto;
+  max-width: 360px;
+  overflow: visible;
+  width: 50%;
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab-orbit {
+  animation: none;
+  display: flex;
+  height: auto;
+  justify-content: center;
+  order: var(--tab-index);
+  position: static;
+  /* Instant relocation at the swap — no fade, no easing of translate from
+     glide-end back to flex position. */
+  transition: none;
+  translate: none;
+  transform: none;
+  width: var(--edge-rail-shadow-width);
+}
+
+.app-shell[data-orb-phase="rail"] .moment-tab-orbit {
+  animation: none;
+  display: flex;
+  height: auto;
+  justify-content: center;
+  order: var(--moment-tab-index);
+  position: static;
+  transition: none;
+  translate: none;
+  transform: none;
+  width: var(--edge-rail-shadow-width);
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab-radius,
+.app-shell[data-orb-phase="rail"] .moment-tab-radius,
+.app-shell[data-orb-phase="rail"] .section-tab-level,
+.app-shell[data-orb-phase="rail"] .moment-tab-level {
+  animation: none;
+  height: auto;
+  position: static;
+  transition: none;
+  transform: none;
+  width: auto;
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab,
+.app-shell[data-orb-phase="rail"] .moment-tab {
+  backdrop-filter: none;
+  box-shadow: 0 6px 16px rgba(30, 93, 118, 0.06);
+  gap: 0;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  pointer-events: auto;
+  transform: none;
+  /* Instant relayout when the rail activates after the glide. The transition
+     on width/padding/transform is re-armed inside the hover/focus rules below
+     so the expansion gesture stays smooth. */
+  transition: none;
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab {
+  min-width: var(--tab-icon-size);
+  width: var(--tab-icon-size);
+}
+
+.app-shell[data-orb-phase="rail"] .moment-tab {
+  min-width: var(--moment-tab-icon-size);
+  width: var(--moment-tab-icon-size);
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab .tab-label,
+.app-shell[data-orb-phase="rail"] .moment-tab .tab-label {
+  max-width: 0;
+  opacity: 0;
+  transition: max-width 220ms ease, opacity 160ms ease;
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab.is-pointer-hover,
+.app-shell[data-orb-phase="rail"] .section-tab:focus-visible,
+.app-shell[data-orb-phase="rail"] .moment-tab.is-pointer-hover,
+.app-shell[data-orb-phase="rail"] .moment-tab:focus-visible {
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(30, 93, 118, 0.08);
+  gap: 9px;
+  justify-content: flex-start;
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    box-shadow 200ms ease,
+    min-width var(--edge-tab-motion),
+    padding var(--edge-tab-motion),
+    transform var(--edge-tab-motion),
+    width var(--edge-tab-motion);
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab.is-pointer-hover,
+.app-shell[data-orb-phase="rail"] .section-tab:focus-visible {
+  min-width: var(--section-tab-expanded-width);
+  padding: 0 17px;
+  transform: translateX(
+    calc((var(--edge-rail-shadow-width) - var(--section-tab-expanded-width)) / 2)
+  );
+  width: var(--section-tab-expanded-width);
+}
+
+.app-shell[data-orb-phase="rail"] .moment-tab.is-pointer-hover,
+.app-shell[data-orb-phase="rail"] .moment-tab:focus-visible {
+  min-width: var(--moment-tab-expanded-width);
+  padding: 0 14px;
+  transform: translateX(
+    calc((var(--edge-rail-shadow-width) - var(--moment-tab-expanded-width)) / 2)
+  );
+  width: var(--moment-tab-expanded-width);
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab.is-active {
+  box-shadow: 0 8px 18px rgba(255, 127, 102, 0.1);
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab.is-active:hover,
+.app-shell[data-orb-phase="rail"] .section-tab.is-active:focus-visible {
+  box-shadow: 0 10px 20px rgba(255, 127, 102, 0.12);
+}
+
+.app-shell[data-orb-phase="rail"] .section-tab.is-pointer-hover .tab-label,
+.app-shell[data-orb-phase="rail"] .section-tab:focus-visible .tab-label,
+.app-shell[data-orb-phase="rail"] .moment-tab.is-pointer-hover .tab-label,
+.app-shell[data-orb-phase="rail"] .moment-tab:focus-visible .tab-label {
+  max-width: var(--tab-label-max-width);
+  opacity: 1;
+}
+
+/* ≥1900: tabs ship already expanded; hover only swaps the background to
+   solid white. Same visual rules as HEAD's hover state, applied as default. */
+@media (min-width: 1900px) {
+  :root {
+    --edge-orb-anchor-width: max(
+      var(--section-tab-expanded-width),
+      var(--moment-tab-expanded-width)
+    );
+    --edge-orb-top-gap: 22px;
+    --edge-scroll-shadow-alpha: 0.08;
+    --edge-scroll-shadow-height: 18px;
+    --edge-scroll-shadow-width: var(--edge-rail-width);
   }
 
-  .app-shell[data-edge-rail="active"] .orb-ui-tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .app-shell[data-edge-rail="active"] .orb-ui-tabs.can-scroll-up {
-    --edge-scroll-top-shadow: rgba(23, 50, 77, 0.18);
-  }
-
-  .app-shell[data-edge-rail="active"] .orb-ui-tabs.can-scroll-down {
-    --edge-scroll-bottom-shadow: rgba(23, 50, 77, 0.18);
-  }
-
-  .app-shell[data-edge-rail="active"] .momentary-tabs,
-  .app-shell[data-edge-rail="active"] .section-tabs {
-    align-items: flex-end;
-    display: flex;
-    flex-direction: column;
-    gap: var(--edge-rail-gap);
-    pointer-events: none;
-    width: 100%;
-  }
-
-  .app-shell[data-edge-rail="active"] .momentary-tabs {
-    order: 0;
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tabs {
-    order: 1;
-  }
-
-  .app-shell[data-edge-rail="active"] .orbit-stage {
-    aspect-ratio: 1;
-    contain: layout paint;
-    flex: 0 0 var(--edge-orb-size);
-    height: var(--edge-orb-size);
-    margin-right: calc((var(--edge-rail-shadow-width) - var(--edge-orb-size)) / 2);
-    order: 2;
-    overflow: hidden;
-    position: relative;
-    translate: none;
-    transform: none;
-    width: var(--edge-orb-size);
-  }
-
-  .app-shell[data-edge-rail="active"] .energy-orb-wrap {
-    aspect-ratio: 1;
-    height: 100%;
-    max-width: none;
-    overflow: hidden;
-    width: 100%;
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tab-orbit {
-    animation: none;
-    display: flex;
-    height: auto;
-    justify-content: center;
-    order: var(--tab-index);
-    position: static;
-    translate: none;
-    transform: none;
-    width: var(--edge-rail-shadow-width);
-  }
-
-  .app-shell[data-edge-rail="active"] .moment-tab-orbit {
-    animation: none;
-    display: flex;
-    height: auto;
-    justify-content: center;
-    order: var(--moment-tab-index);
-    position: static;
-    translate: none;
-    transform: none;
-    width: var(--edge-rail-shadow-width);
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tab-radius,
-  .app-shell[data-edge-rail="active"] .moment-tab-radius,
-  .app-shell[data-edge-rail="active"] .section-tab-level,
-  .app-shell[data-edge-rail="active"] .moment-tab-level {
-    animation: none;
-    height: auto;
-    position: static;
-    transform: none;
-    width: auto;
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tab,
-  .app-shell[data-edge-rail="active"] .moment-tab {
-    backdrop-filter: blur(8px);
-    background: rgba(255, 255, 255, 0.52);
-    box-shadow: 0 10px 24px rgba(30, 93, 118, 0.08);
-    gap: 0;
-    justify-content: center;
-    padding: 0;
-    position: relative;
-    pointer-events: auto;
-    transform: none;
-    transition:
-      border-color 200ms ease,
-      background 200ms ease,
-      box-shadow 200ms ease,
-      min-width var(--edge-tab-motion),
-      padding var(--edge-tab-motion),
-      transform var(--edge-tab-motion),
-      width var(--edge-tab-motion);
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tab {
-    border-color: rgba(32, 178, 170, 0.32);
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tab.is-active {
-    border-color: rgba(255, 127, 102, 0.62);
-    box-shadow: 0 12px 28px rgba(255, 127, 102, 0.12);
-  }
-
-  .app-shell[data-edge-rail="active"] .moment-tab {
-    border-color: rgba(255, 127, 102, 0.24);
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tab {
-    min-width: var(--tab-icon-size);
-    width: var(--tab-icon-size);
-  }
-
-  .app-shell[data-edge-rail="active"] .moment-tab {
-    min-width: var(--moment-tab-icon-size);
-    width: var(--moment-tab-icon-size);
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tab .tab-label,
-  .app-shell[data-edge-rail="active"] .moment-tab .tab-label {
-    max-width: 0;
-    opacity: 0;
-    transition: max-width 220ms ease, opacity 160ms ease;
-  }
-
-  .app-shell[data-edge-rail="active"] .section-tab.is-pointer-hover,
-  .app-shell[data-edge-rail="active"] .section-tab:focus-visible,
-  .app-shell[data-edge-rail="active"] .moment-tab.is-pointer-hover,
-  .app-shell[data-edge-rail="active"] .moment-tab:focus-visible {
-    background: #ffffff;
+  .app-shell[data-orb-phase="rail"] .section-tab,
+  .app-shell[data-orb-phase="rail"] .moment-tab {
     gap: 9px;
     justify-content: flex-start;
   }
 
-  .app-shell[data-edge-rail="active"] .section-tab.is-pointer-hover,
-  .app-shell[data-edge-rail="active"] .section-tab:focus-visible {
+  .app-shell[data-orb-phase="rail"] .section-tab {
     min-width: var(--section-tab-expanded-width);
     padding: 0 17px;
     transform: translateX(
@@ -1923,8 +2140,7 @@ h1 {
     width: var(--section-tab-expanded-width);
   }
 
-  .app-shell[data-edge-rail="active"] .moment-tab.is-pointer-hover,
-  .app-shell[data-edge-rail="active"] .moment-tab:focus-visible {
+  .app-shell[data-orb-phase="rail"] .moment-tab {
     min-width: var(--moment-tab-expanded-width);
     padding: 0 14px;
     transform: translateX(
@@ -1933,10 +2149,8 @@ h1 {
     width: var(--moment-tab-expanded-width);
   }
 
-  .app-shell[data-edge-rail="active"] .section-tab.is-pointer-hover .tab-label,
-  .app-shell[data-edge-rail="active"] .section-tab:focus-visible .tab-label,
-  .app-shell[data-edge-rail="active"] .moment-tab.is-pointer-hover .tab-label,
-  .app-shell[data-edge-rail="active"] .moment-tab:focus-visible .tab-label {
+  .app-shell[data-orb-phase="rail"] .section-tab .tab-label,
+  .app-shell[data-orb-phase="rail"] .moment-tab .tab-label {
     max-width: var(--tab-label-max-width);
     opacity: 1;
   }
