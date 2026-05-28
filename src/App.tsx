@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -61,6 +62,12 @@ const iconMap: Record<string, IconComponent> = {
 };
 
 type LayoutMode = "hub" | "section";
+type OrbPhase =
+  | "hub"
+  | "gliding-to-section"
+  | "rail"
+  | "preparing-hub-glide"
+  | "gliding-to-hub";
 type CarouselAction = {
   label: string;
   href: string;
@@ -80,8 +87,8 @@ type CarouselCard = {
 // Closing the section view keeps the panel/title mounted for this long so the
 // exit transition can finish before the content unmounts.
 const SECTION_EXIT_MS = 460;
+const ORBIT_GLIDE_MS = 860;
 const ORBIT_HOVER_PLAYBACK_RATE = 0.5;
-const EDGE_RAIL_MEDIA_QUERY = "(max-width: 1900px)";
 
 function pathSegment(pathname: string): string {
   return pathname.replace(/^\/+|\/+$/g, "").split("/")[0] ?? "";
@@ -281,13 +288,51 @@ function useOrbitPointerHover(
   }, [enabled, animationSelector, containerRef, hitSelector]);
 }
 
+function useOrbPhase(routeMode: LayoutMode) {
+  const [orbPhase, setOrbPhase] = useState<OrbPhase>(() =>
+    routeMode === "section" ? "gliding-to-section" : "hub",
+  );
+  const previousRouteModeRef = useRef<LayoutMode>(routeMode);
+
+  useLayoutEffect(() => {
+    const previousRouteMode = previousRouteModeRef.current;
+    previousRouteModeRef.current = routeMode;
+
+    let frame = 0;
+    let timer = 0;
+
+    if (routeMode === "section") {
+      setOrbPhase("gliding-to-section");
+      timer = window.setTimeout(() => setOrbPhase("rail"), ORBIT_GLIDE_MS);
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }
+
+    if (previousRouteMode === "section") {
+      setOrbPhase("preparing-hub-glide");
+      frame = window.requestAnimationFrame(() => {
+        setOrbPhase("gliding-to-hub");
+        timer = window.setTimeout(() => setOrbPhase("hub"), ORBIT_GLIDE_MS);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(frame);
+        window.clearTimeout(timer);
+      };
+    }
+
+    setOrbPhase("hub");
+    return undefined;
+  }, [routeMode]);
+
+  return orbPhase;
+}
+
 function App() {
   const moonPhaseFavicon = useMoonPhaseFavicon();
 
   const [siteData, setSiteData] = useState<SiteData>(fallbackSiteData);
-  const [isEdgeRailViewport, setIsEdgeRailViewport] = useState(() =>
-    typeof window === "undefined" ? false : window.matchMedia(EDGE_RAIL_MEDIA_QUERY).matches,
-  );
   const orbAnchorRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -315,33 +360,30 @@ function App() {
   const activeMoment = isAdmin || isAdminLogin || section ? null : momentFromPathname(location.pathname, visibleMomentaryTabs);
   const momentConfig = visibleMomentaryTabs.find((item) => item.id === activeMoment) ?? null;
   const mode: LayoutMode = section || activeMoment ? "section" : "hub";
-  const shouldUseEdgeRail = mode === "section" && isEdgeRailViewport;
 
   // displayedSection / displayedMoment lag behind the live route so the panel
   // and title keep their content while the close transition plays out.
   const [displayedSection, setDisplayedSection] = useState<SectionId | null>(section);
   const [displayedMoment, setDisplayedMoment] = useState<string | null>(activeMoment);
-  const [isEdgeRailReady, setIsEdgeRailReady] = useState(false);
+  const orbRailRef = useRef<HTMLDivElement>(null);
   const orbTabsRef = useRef<HTMLDivElement>(null);
+  const orbPhase = useOrbPhase(mode);
+  const usesEdgeRail = orbPhase === "rail";
+  const orbitInteractionEnabled = orbPhase === "hub";
+  const orbitCoreMode: LayoutMode =
+    orbPhase === "gliding-to-section" ||
+    orbPhase === "rail" ||
+    orbPhase === "preparing-hub-glide"
+      ? "section"
+      : "hub";
   const [orbTabScrollShadows, setOrbTabScrollShadows] = useState({
     down: false,
     measured: false,
     overflow: false,
     up: false,
   });
-  const usesEdgeRail = shouldUseEdgeRail && isEdgeRailReady;
 
   useOrbitPointerHover(orbTabsRef, ".section-tab, .moment-tab", "", usesEdgeRail);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(EDGE_RAIL_MEDIA_QUERY);
-    const onChange = () => setIsEdgeRailViewport(mediaQuery.matches);
-
-    onChange();
-    mediaQuery.addEventListener("change", onChange);
-
-    return () => mediaQuery.removeEventListener("change", onChange);
-  }, []);
 
   useEffect(() => {
     const tabs = orbTabsRef.current;
@@ -411,16 +453,6 @@ function App() {
     visibleMomentaryTabs.length,
     visibleSections.length,
   ]);
-
-  useEffect(() => {
-    if (!shouldUseEdgeRail) {
-      setIsEdgeRailReady(false);
-      return;
-    }
-
-    const timer = window.setTimeout(() => setIsEdgeRailReady(true), 860);
-    return () => window.clearTimeout(timer);
-  }, [shouldUseEdgeRail]);
 
   useEffect(() => {
     if (section) {
@@ -525,29 +557,28 @@ function App() {
     .join(" ");
 
   return (
-    // data-orb-mode / data-orb-section expose the layout state for the UI orbit.
+    // data-orb-phase exposes the UI orbit state independently from the route.
     // SunEffect remains fullscreen so the WebGL layers keep stable coordinates.
     <main
       className="app-shell"
-      data-edge-rail={usesEdgeRail ? "active" : "inactive"}
-      data-orb-mode={mode}
+      data-orb-phase={orbPhase}
       data-orb-section={section ?? activeMoment ?? ""}
     >
       <SunEffect
         anchorRef={orbAnchorRef}
         className="viewport-sun-field"
         quality="high"
-        intensity={usesEdgeRail ? 0.96 : 1.22}
-        size={usesEdgeRail ? 0.08 : 0.46}
+        intensity={1.22}
+        size={0.46}
         plasmaSpeed={0.32}
         plasmaScale={2.35}
-        coronaSize={usesEdgeRail ? 0.8 : 1.7}
-        coronaDistortion={usesEdgeRail ? 0.36 : 0.58}
-        rayStrength={usesEdgeRail ? 0 : 0.52}
-        rayLength={usesEdgeRail ? 0.55 : 1.75}
+        coronaSize={1.7}
+        coronaDistortion={0.58}
+        rayStrength={0.52}
+        rayLength={1.75}
         cursorInfluence={0.9}
-        bloomStrength={usesEdgeRail ? 0.45 : 1.2}
-        bloomRadius={usesEdgeRail ? 0.14 : 0.38}
+        bloomStrength={1.2}
+        bloomRadius={0.38}
         hoverTargetRadius={0.42}
         interactive={mode === "hub"}
         colorPalette={{
@@ -562,10 +593,10 @@ function App() {
 
       <h1 className="sr-only">{siteData.profile.name}</h1>
 
-      <div className="orb-ui-rail">
+      <div ref={orbRailRef} className="orb-ui-rail">
         <div ref={orbTabsRef} className={orbTabsClassName}>
           <MomentaryTabs
-            mode={mode}
+            orbitInteractionEnabled={orbitInteractionEnabled}
             tabs={visibleMomentaryTabs}
             activeMoment={activeMoment}
             onSelect={goToMoment}
@@ -573,13 +604,13 @@ function App() {
           <SectionTabs
             activeSection={section}
             onSelect={goToSection}
-            mode={mode}
+            orbitInteractionEnabled={orbitInteractionEnabled}
             sections={visibleSections}
           />
         </div>
         <OrbitCore
           anchorRef={orbAnchorRef}
-          mode={mode}
+          mode={orbitCoreMode}
           orbLabel={mode === "section" ? "Volver al inicio" : orbLabel}
           onOrbActivate={() =>
             mode === "section"
@@ -675,12 +706,12 @@ function OrbitCore({
 function SectionTabs({
   activeSection,
   onSelect,
-  mode,
+  orbitInteractionEnabled,
   sections,
 }: {
   activeSection: SectionId | null;
   onSelect: (section: SectionId) => void;
-  mode: LayoutMode;
+  orbitInteractionEnabled: boolean;
   sections: SiteSection[];
 }) {
   const tabsRef = useRef<HTMLElement>(null);
@@ -688,7 +719,7 @@ function SectionTabs({
     tabsRef,
     ".section-tab",
     ".section-tab-orbit, .section-tab-level",
-    mode === "hub",
+    orbitInteractionEnabled,
   );
 
   return (
@@ -743,12 +774,12 @@ function SectionTabs({
 // glide to the corner column, stacked above the inner section tabs while
 // keeping their compact yellowish style from the hub.
 function MomentaryTabs({
-  mode,
+  orbitInteractionEnabled,
   tabs,
   activeMoment,
   onSelect,
 }: {
-  mode: LayoutMode;
+  orbitInteractionEnabled: boolean;
   tabs: MomentaryTab[];
   activeMoment: string | null;
   onSelect: (next: string) => void;
@@ -758,7 +789,7 @@ function MomentaryTabs({
     tabsRef,
     ".moment-tab",
     ".moment-tab-orbit, .moment-tab-level",
-    mode === "hub",
+    orbitInteractionEnabled,
   );
 
   return (
