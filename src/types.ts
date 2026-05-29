@@ -17,48 +17,6 @@ export type Profile = {
   highlights: string[];
 };
 
-export type Experience = {
-  period: string;
-  title: string;
-  company: string;
-  description: string;
-};
-
-export type Education = {
-  title: string;
-  detail: string;
-};
-
-export type Cv = {
-  summary: string;
-  experience: Experience[];
-  skills: string[];
-  education: Education[];
-};
-
-export type Project = {
-  name: string;
-  category: string;
-  summary: string;
-  status: string;
-  stack: string[];
-  href: string;
-  featured: boolean;
-};
-
-export type Post = {
-  title: string;
-  date: string;
-  excerpt: string;
-  href: string;
-};
-
-export type DocLink = {
-  title: string;
-  description: string;
-  href: string;
-};
-
 export type OrbitSlot = "inner" | "outer";
 
 export type SiteSection = {
@@ -77,9 +35,11 @@ export type SiteSection = {
   enabled: boolean;
 };
 
-export type SectionItem = {
+// Shared presentation fields for any content card, whether it belongs to a
+// section or to a momentary tab. The owner reference (sectionId / tabId) is
+// added by the concrete item types below.
+export type ContentItem = {
   id: string;
-  sectionId: string;
   kind: string;
   kicker: string;
   title: string;
@@ -94,6 +54,10 @@ export type SectionItem = {
   featured: boolean;
 };
 
+export type SectionItem = ContentItem & {
+  sectionId: string;
+};
+
 export type MomentaryTab = {
   id: string;
   label: string;
@@ -105,15 +69,17 @@ export type MomentaryTab = {
   enabled: boolean;
 };
 
+export type MomentaryItem = ContentItem & {
+  tabId: string;
+};
+
 export type SiteData = {
   profile: Profile;
-  cv: Cv;
-  projects: Project[];
-  posts: Post[];
-  docs: DocLink[];
   sections: SiteSection[];
   sectionItems: SectionItem[];
   momentaryTabs: MomentaryTab[];
+  momentaryItems: MomentaryItem[];
+  revision: number;
 };
 
 export type SectionId = string;
