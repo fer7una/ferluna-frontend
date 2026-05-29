@@ -457,7 +457,7 @@ function App() {
 
   useEffect(() => {
     if (isAdmin && !getStoredAdminSession()) {
-      navigate("/", { replace: true });
+      navigate("/admin/login", { replace: true });
     }
   }, [isAdmin, navigate]);
 

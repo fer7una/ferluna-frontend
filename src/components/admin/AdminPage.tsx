@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { TriangleAlert } from "lucide-react";
 import {
   ApiError,
   fetchAdminSiteData,
@@ -32,10 +33,6 @@ import {
 } from "./session";
 
 const ICON_OPTIONS = ICON_KEYS.map((key) => ({ value: key, label: key }));
-const ORBIT_OPTIONS = [
-  { value: "inner", label: "inner" },
-  { value: "outer", label: "outer" },
-];
 const LINK_KIND_OPTIONS: { value: LinkKind; label: string }[] = [
   { value: "github", label: "GitHub" },
   { value: "linkedin", label: "LinkedIn" },
@@ -266,6 +263,14 @@ export function AdminPage() {
     navigate("/", { replace: true });
   }, [navigate]);
 
+  // Used when the session is lost for any reason other than an explicit logout
+  // (expired token, 401): send the user to the login form so they can
+  // re-authenticate, instead of dumping them on the public portal.
+  const redirectToLogin = useCallback(() => {
+    clearStoredAdminSession();
+    navigate("/admin/login", { replace: true, state: { expired: true } });
+  }, [navigate]);
+
   const applyLoaded = useCallback((data: AdminContentData & { revision: number }) => {
     const next: AdminContentData = {
       profile: data.profile,
@@ -284,7 +289,7 @@ export function AdminPage() {
     async (signal?: AbortSignal) => {
       const currentSession = getStoredAdminSession();
       if (!currentSession) {
-        logout();
+        redirectToLogin();
         return;
       }
 
@@ -301,7 +306,7 @@ export function AdminPage() {
           return;
         }
         if (loadError instanceof ApiError && loadError.status === 401) {
-          logout();
+          redirectToLogin();
           return;
         }
         setStatus("Error");
@@ -310,7 +315,7 @@ export function AdminPage() {
         setBusy(false);
       }
     },
-    [applyLoaded, logout],
+    [applyLoaded, redirectToLogin],
   );
 
   useEffect(() => {
@@ -319,10 +324,23 @@ export function AdminPage() {
     return () => controller.abort();
   }, [loadAdminData]);
 
+  // Proactively bounce to the login form the moment the token expires, so a
+  // later save/reload can't fail mid-edit on a dead session.
+  useEffect(() => {
+    if (!session) return;
+    const msUntilExpiry = session.expiresAt * 1000 - Date.now();
+    if (msUntilExpiry <= 0) {
+      redirectToLogin();
+      return;
+    }
+    const timer = window.setTimeout(redirectToLogin, msUntilExpiry);
+    return () => window.clearTimeout(timer);
+  }, [session, redirectToLogin]);
+
   const saveAdminData = async () => {
     const currentSession = getStoredAdminSession();
     if (!currentSession) {
-      logout();
+      redirectToLogin();
       return;
     }
 
@@ -346,7 +364,7 @@ export function AdminPage() {
       setMessage("Cambios guardados correctamente.");
     } catch (saveError) {
       if (saveError instanceof ApiError && saveError.status === 401) {
-        logout();
+        redirectToLogin();
         return;
       }
       if (saveError instanceof ApiError && saveError.status === 409) {
@@ -364,6 +382,37 @@ export function AdminPage() {
   };
 
   const dirty = loaded && JSON.stringify(doc) !== savedSnapshot;
+
+  // Parse the saved baseline once so the sidebar can flag exactly which entity
+  // has unsaved edits. Entities are matched by id; a missing id (new or renamed
+  // section/tab) counts as changed.
+  const savedDoc = useMemo<AdminContentData | null>(
+    () => (savedSnapshot ? (JSON.parse(savedSnapshot) as AdminContentData) : null),
+    [savedSnapshot],
+  );
+
+  const isProfileDirty =
+    savedDoc !== null && JSON.stringify(doc.profile) !== JSON.stringify(savedDoc.profile);
+
+  const isSectionDirty = (section: SiteSection): boolean => {
+    if (!savedDoc) return false;
+    const saved = savedDoc.sections.find((item) => item.id === section.id);
+    if (!saved) return true;
+    if (JSON.stringify(section) !== JSON.stringify(saved)) return true;
+    const current = doc.sectionItems.filter((item) => item.sectionId === section.id);
+    const base = savedDoc.sectionItems.filter((item) => item.sectionId === section.id);
+    return JSON.stringify(current) !== JSON.stringify(base);
+  };
+
+  const isTabDirty = (tab: MomentaryTab): boolean => {
+    if (!savedDoc) return false;
+    const saved = savedDoc.momentaryTabs.find((item) => item.id === tab.id);
+    if (!saved) return true;
+    if (JSON.stringify(tab) !== JSON.stringify(saved)) return true;
+    const current = doc.momentaryItems.filter((item) => item.tabId === tab.id);
+    const base = savedDoc.momentaryItems.filter((item) => item.tabId === tab.id);
+    return JSON.stringify(current) !== JSON.stringify(base);
+  };
 
   const patchProfile = (patch: Partial<AdminContentData["profile"]>) =>
     setDoc((current) => ({ ...current, profile: { ...current.profile, ...patch } }));
@@ -452,9 +501,9 @@ export function AdminPage() {
     <main className="admin-shell">
       <section className="admin-panel" aria-labelledby="admin-title">
         <header className="admin-header">
-          <div>
+          <div className="admin-header-titles">
             <p>Fernando Luna</p>
-            <h1 id="admin-title">Administración de contenido</h1>
+            <h1 id="admin-title" className="admin-title">Administración de contenido</h1>
           </div>
           <a href="/">Volver al portal</a>
         </header>
@@ -465,6 +514,9 @@ export function AdminPage() {
               Sesión activa hasta {session ? formatSessionExpiry(session.expiresAt) : "sin sesión"}
             </span>
             <span className={`admin-dirty ${dirty ? "is-dirty" : ""}`}>
+              {dirty ? (
+                <TriangleAlert className="admin-dirty-icon" size={16} aria-hidden="true" />
+              ) : null}
               {dirty ? "Cambios sin guardar" : "Sin cambios"}
             </span>
           </div>
@@ -504,7 +556,8 @@ export function AdminPage() {
               className={`admin-nav-item ${active.kind === "identity" ? "is-active" : ""}`}
               onClick={() => setSelection({ kind: "identity" })}
             >
-              Identidad
+              <span className="admin-nav-item-label">Identidad</span>
+              <NavDirtyMark show={isProfileDirty} />
             </button>
 
             <div className="admin-nav-group">
@@ -524,7 +577,10 @@ export function AdminPage() {
                     className={`admin-nav-item ${active.kind === "section" && active.index === index ? "is-active" : ""}`}
                     onClick={() => setSelection({ kind: "section", index })}
                   >
-                    {section.label || section.id || `Sección ${index + 1}`}
+                    <span className="admin-nav-item-label">
+                      {section.label || section.id || `Sección ${index + 1}`}
+                    </span>
+                    <NavDirtyMark show={isSectionDirty(section)} />
                   </button>
                 ))
               )}
@@ -547,7 +603,10 @@ export function AdminPage() {
                     className={`admin-nav-item ${active.kind === "tab" && active.index === index ? "is-active" : ""}`}
                     onClick={() => setSelection({ kind: "tab", index })}
                   >
-                    {tab.label || tab.id || `Pestaña ${index + 1}`}
+                    <span className="admin-nav-item-label">
+                      {tab.label || tab.id || `Pestaña ${index + 1}`}
+                    </span>
+                    <NavDirtyMark show={isTabDirty(tab)} />
                   </button>
                 ))
               )}
@@ -578,6 +637,15 @@ export function AdminPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+// Orange warning mark shown in the sidebar next to an entity with unsaved
+// edits, matching the toolbar "Cambios sin guardar" indicator.
+function NavDirtyMark({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <TriangleAlert className="admin-nav-dirty-icon" size={14} role="img" aria-label="Cambios sin guardar" />
   );
 }
 
@@ -644,13 +712,45 @@ function SectionEditor({
   items: SectionItem[];
   onItemsChange: (items: SectionItem[]) => void;
 }) {
+  // Two-step delete: arming the confirmation requires a second, explicit click,
+  // so an accidental press can't drop a section and all its items.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  // Disarm when the editor switches to another section so a confirmation armed
+  // on one section can't carry over and delete the next one.
+  useEffect(() => {
+    setConfirmingDelete(false);
+  }, [section.id]);
+
   return (
     <>
       <div className="admin-entity-head">
         <h2>{section.label || section.id || "Sección"}</h2>
-        <button type="button" className="admin-danger" onClick={onDelete}>
-          Eliminar sección
-        </button>
+        {confirmingDelete ? (
+          <div className="admin-delete-confirm" role="group" aria-label="Confirmar eliminación de la sección">
+            <span className="admin-delete-confirm-text">
+              <TriangleAlert size={16} aria-hidden="true" />
+              ¿Eliminar la sección y todos sus items?
+            </span>
+            <button
+              type="button"
+              className="admin-danger"
+              onClick={() => {
+                setConfirmingDelete(false);
+                onDelete();
+              }}
+            >
+              Sí, eliminar
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)}>
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="admin-danger" onClick={() => setConfirmingDelete(true)}>
+            Eliminar sección
+          </button>
+        )}
       </div>
       <div className="admin-grid">
         <TextField label="id" value={section.id} onChange={(value) => onChange({ ...section, id: value })} />
@@ -659,7 +759,6 @@ function SectionEditor({
         <TextField label="eyebrow" value={section.eyebrow} onChange={(value) => onChange({ ...section, eyebrow: value })} />
         <TextField label="title" value={section.title} onChange={(value) => onChange({ ...section, title: value })} />
         <SelectField label="icono" value={section.iconKey} options={ICON_OPTIONS} onChange={(value) => onChange({ ...section, iconKey: value })} />
-        <SelectField label="órbita" value={section.orbit} options={ORBIT_OPTIONS} onChange={(value) => onChange({ ...section, orbit: value as SiteSection["orbit"] })} />
         <NumberField label="ángulo" value={section.angle} onChange={(value) => onChange({ ...section, angle: value })} />
         <NumberField label="orden" value={section.order} onChange={(value) => onChange({ ...section, order: value })} />
       </div>

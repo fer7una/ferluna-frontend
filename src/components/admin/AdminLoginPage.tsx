@@ -1,12 +1,18 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { loginAdmin } from "../../api";
 import { storeAdminSession } from "./session";
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const expired = (location.state as { expired?: boolean } | null)?.expired === true;
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState("Introduce la clave de administración.");
+  const [status, setStatus] = useState(
+    expired
+      ? "Tu sesión expiró. Vuelve a iniciar sesión."
+      : "Introduce la clave de administración.",
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
