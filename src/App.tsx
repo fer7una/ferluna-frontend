@@ -1,18 +1,11 @@
 import {
-  BookOpen,
-  BriefcaseBusiness,
   ChevronLeft,
   ChevronRight,
-  Code2,
   ExternalLink,
   Github,
   Globe2,
-  Layers,
   Linkedin,
   Mail,
-  Newspaper,
-  Rocket,
-  UserRound,
 } from "lucide-react";
 import {
   useEffect,
@@ -21,45 +14,23 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type FormEvent,
   type ReactNode,
   type RefObject,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  ApiError,
-  fallbackSiteData,
-  fetchAdminSiteData,
-  fetchSiteData,
-  loginAdmin,
-  saveAdminSiteData,
-} from "./api";
+import { fallbackSiteData, fetchSiteData } from "./api";
+import { AdminLoginPage, AdminPage, getStoredAdminSession } from "./components/admin";
 import { SunEffect } from "./components/SunEffect";
+import { IconByKey } from "./icons";
 import { useMoonPhaseFavicon, type MoonPhaseFavicon } from "./useMoonPhaseFavicon";
 import type {
-  DocLink,
+  ContentItem,
   MomentaryTab,
-  Post,
   ProfileLink,
-  Project,
   SectionId,
-  SectionItem,
   SiteData,
   SiteSection,
 } from "./types";
-
-type IconComponent = typeof BriefcaseBusiness;
-
-const iconMap: Record<string, IconComponent> = {
-  book: BookOpen,
-  briefcase: BriefcaseBusiness,
-  code: Code2,
-  globe: Globe2,
-  layers: Layers,
-  newspaper: Newspaper,
-  rocket: Rocket,
-  user: UserRound,
-};
 
 type LayoutMode = "hub" | "section";
 type OrbPhase =
@@ -130,11 +101,6 @@ function sortByOrder<T extends { order: number; id: string }>(items: T[]) {
   return [...items].sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
 }
 
-function IconByKey({ iconKey, size }: { iconKey: string; size: number }) {
-  const Icon = iconMap[iconKey] ?? Globe2;
-  return <Icon size={size} aria-hidden="true" />;
-}
-
 function TabLabel({ children }: { children: string }) {
   const labelRef = useRef<HTMLSpanElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
@@ -202,6 +168,9 @@ function useOrbitPointerHover(
   hitSelector: string,
   animationSelector: string,
   enabled: boolean,
+  // Changes whenever the set of hoverable targets changes (e.g. tabs render
+  // after the site data loads), so the effect re-queries them.
+  targetsKey: number = 0,
 ) {
   const activeElementRef = useRef<HTMLElement | null>(null);
   const pointerRef = useRef({ x: 0, y: 0, hasPointer: false });
@@ -285,7 +254,7 @@ function useOrbitPointerHover(
       window.removeEventListener("blur", clearHover);
       clearActive();
     };
-  }, [enabled, animationSelector, containerRef, hitSelector]);
+  }, [enabled, animationSelector, containerRef, hitSelector, targetsKey]);
 }
 
 function useOrbPhase(routeMode: LayoutMode) {
@@ -383,7 +352,13 @@ function App() {
     up: false,
   });
 
-  useOrbitPointerHover(orbTabsRef, ".section-tab, .moment-tab", "", usesEdgeRail);
+  useOrbitPointerHover(
+    orbTabsRef,
+    ".section-tab, .moment-tab",
+    "",
+    usesEdgeRail,
+    visibleSections.length + visibleMomentaryTabs.length,
+  );
 
   useEffect(() => {
     const tabs = orbTabsRef.current;
@@ -720,6 +695,7 @@ function SectionTabs({
     ".section-tab",
     ".section-tab-orbit, .section-tab-level",
     orbitInteractionEnabled,
+    sections.length,
   );
 
   return (
@@ -790,6 +766,7 @@ function MomentaryTabs({
     ".moment-tab",
     ".moment-tab-orbit, .moment-tab-level",
     orbitInteractionEnabled,
+    tabs.length,
   );
 
   return (
@@ -864,50 +841,33 @@ function SectionPanel({
         {section && sectionConfig ? (
           <SectionContent section={sectionConfig} siteData={siteData} />
         ) : moment && momentConfig ? (
-          <MomentPlaceholder moment={momentConfig} />
+          <MomentContent moment={momentConfig} siteData={siteData} />
         ) : null}
       </div>
     </section>
   );
 }
 
-function MomentPlaceholder({ moment }: { moment: MomentaryTab }) {
-  const cards: CarouselCard[] = [
-    {
-      id: `${moment.id}-placeholder-1`,
-      kicker: "Próximamente",
-      title: `${moment.label} en preparación`,
-      description:
-        "Estoy curando el contenido de esta pestaña. Pronto verás aquí lo más relevante.",
-      icon: <IconByKey iconKey={moment.iconKey} size={20} />,
-    },
-    {
-      id: `${moment.id}-placeholder-2`,
-      kicker: "Vista previa",
-      title: "Estructura reservada",
-      description:
-        "Misma estructura que las secciones principales: tarjetas con resumen, etiquetas y enlace.",
-      icon: <IconByKey iconKey="layers" size={20} />,
-    },
-    {
-      id: `${moment.id}-placeholder-3`,
-      kicker: "Detalle",
-      title: "Pendiente de definir",
-      description:
-        "Cuando el contenido esté listo, esta vista cargará tarjetas reales desde el backend.",
-      icon: <IconByKey iconKey="newspaper" size={20} />,
-    },
-  ];
+function MomentContent({ moment, siteData }: { moment: MomentaryTab; siteData: SiteData }) {
+  const items = sortByOrder(
+    siteData.momentaryItems.filter(
+      (item) => item.tabId === moment.id && isVisibleNow(item),
+    ),
+  );
 
   return (
     <StandardSectionView
       section={moment.id}
       eyebrow="Pestaña momentánea"
       title={moment.label}
-      description="Contenido placeholder con la misma estructura que las secciones principales."
+      description={`Contenido de ${moment.label}.`}
       iconKey={moment.iconKey}
     >
-      <SectionCarousel ariaLabel={moment.label} cards={cards} />
+      {items.length > 0 ? (
+        <GenericSectionItems ariaLabel={moment.label} items={items} />
+      ) : (
+        <EmptySectionState label={moment.label} />
+      )}
     </StandardSectionView>
   );
 }
@@ -981,26 +941,14 @@ function SectionBody({
     ),
   );
 
-  if (sectionItems.length > 0) {
-    return <GenericSectionItems ariaLabel={activeSection} items={sectionItems} />;
+  if (sectionItems.length === 0) {
+    return <EmptySectionState label={activeSection} />;
   }
 
-  if (activeSection === "projects") {
-    return <Projects projects={siteData.projects} />;
-  }
-
-  if (activeSection === "personal") {
-    return <Personal posts={siteData.posts} featuredProjects={siteData.projects.filter((project) => project.featured)} />;
-  }
-
-  if (activeSection === "docs") {
-    return <Docs docs={siteData.docs} />;
-  }
-
-  return <CvSection siteData={siteData} />;
+  return <GenericSectionItems ariaLabel={activeSection} items={sectionItems} />;
 }
 
-function GenericSectionItems({ ariaLabel, items }: { ariaLabel: string; items: SectionItem[] }) {
+function GenericSectionItems({ ariaLabel, items }: { ariaLabel: string; items: ContentItem[] }) {
   const cards: CarouselCard[] = items.map((item) => ({
     id: item.id,
     kicker: normalizeKicker(item),
@@ -1015,100 +963,23 @@ function GenericSectionItems({ ariaLabel, items }: { ariaLabel: string; items: S
   return <SectionCarousel ariaLabel={ariaLabel} cards={cards} />;
 }
 
-function normalizeKicker(item: SectionItem) {
-  if (item.kind === "post") {
+function EmptySectionState({ label }: { label: string }) {
+  return (
+    <div className="section-empty-state" role="status">
+      <p>Todavía no hay contenido publicado en {label}.</p>
+    </div>
+  );
+}
+
+function normalizeKicker(item: ContentItem) {
+  if (item.kind === "post" && isIsoDate(item.kicker)) {
     return formatDate(item.kicker);
   }
   return item.kicker;
 }
 
-function CvSection({ siteData }: { siteData: SiteData }) {
-  const cards: CarouselCard[] = [
-    {
-      id: "cv-summary",
-      kicker: "Perfil",
-      title: "Resumen profesional",
-      description: siteData.cv.summary,
-      tags: siteData.cv.skills,
-      icon: <BriefcaseBusiness size={20} aria-hidden="true" />,
-    },
-    ...siteData.cv.experience.map((item, index) => ({
-      id: `experience-${index}`,
-      kicker: item.period,
-      title: item.title,
-      meta: item.company,
-      description: item.description,
-      icon: <BriefcaseBusiness size={20} aria-hidden="true" />,
-    })),
-    ...siteData.cv.education.map((item, index) => ({
-      id: `education-${index}`,
-      kicker: "Formacion",
-      title: item.title,
-      description: item.detail,
-      icon: <Rocket size={20} aria-hidden="true" />,
-    })),
-  ];
-
-  return <SectionCarousel ariaLabel="CV" cards={cards} />;
-}
-
-function Projects({ projects }: { projects: Project[] }) {
-  const cards: CarouselCard[] = projects.map((project) => ({
-    id: project.name,
-    kicker: project.category,
-    title: project.name,
-    meta: project.status,
-    description: project.summary,
-    tags: project.stack,
-    action: { label: "Abrir", href: project.href },
-    icon: <Code2 size={20} aria-hidden="true" />,
-  }));
-
-  return <SectionCarousel ariaLabel="Proyectos" cards={cards} />;
-}
-
-function Personal({
-  posts,
-  featuredProjects,
-}: {
-  posts: Post[];
-  featuredProjects: Project[];
-}) {
-  const cards: CarouselCard[] = [
-    ...posts.map((post) => ({
-      id: `post-${post.title}`,
-      kicker: formatDate(post.date),
-      title: post.title,
-      description: post.excerpt,
-      action: { label: "Leer", href: post.href },
-      icon: <UserRound size={20} aria-hidden="true" />,
-    })),
-    ...featuredProjects.map((project) => ({
-      id: `focus-${project.name}`,
-      kicker: "Ahora mismo",
-      title: project.name,
-      meta: project.status,
-      description: project.summary,
-      tags: project.stack,
-      action: { label: "Abrir", href: project.href },
-      icon: <Layers size={20} aria-hidden="true" />,
-    })),
-  ];
-
-  return <SectionCarousel ariaLabel="Notas personales" cards={cards} />;
-}
-
-function Docs({ docs }: { docs: DocLink[] }) {
-  const cards: CarouselCard[] = docs.map((doc) => ({
-    id: doc.title,
-    kicker: "Documento",
-    title: doc.title,
-    description: doc.description,
-    action: { label: "Abrir docs", href: doc.href },
-    icon: <Newspaper size={20} aria-hidden="true" />,
-  }));
-
-  return <SectionCarousel ariaLabel="Documentacion" cards={cards} />;
+function isIsoDate(value: string) {
+  return !Number.isNaN(Date.parse(value));
 }
 
 function SectionCarousel({ ariaLabel, cards }: { ariaLabel: string; cards: CarouselCard[] }) {
@@ -1274,261 +1145,6 @@ function getCarouselOffset(index: number, activeIndex: number, count: number) {
   return raw;
 }
 
-type AdminContentData = Pick<SiteData, "sections" | "sectionItems" | "momentaryTabs">;
-
-type AdminSession = {
-  accessToken: string;
-  expiresAt: number;
-};
-
-const ADMIN_SESSION_STORAGE_KEY = "ferluna-admin-session";
-
-function getStoredAdminSession(): AdminSession | null {
-  try {
-    const rawSession = sessionStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
-    if (!rawSession) return null;
-
-    const session = JSON.parse(rawSession) as Partial<AdminSession>;
-    if (!session.accessToken || !session.expiresAt) return null;
-    if (Date.now() >= session.expiresAt * 1000) {
-      clearStoredAdminSession();
-      return null;
-    }
-
-    return {
-      accessToken: session.accessToken,
-      expiresAt: session.expiresAt,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function storeAdminSession(session: AdminSession) {
-  try {
-    sessionStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
-  } catch {
-    return;
-  }
-}
-
-function clearStoredAdminSession() {
-  try {
-    sessionStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
-  } catch {
-    return;
-  }
-}
-
-function AdminLoginPage() {
-  const navigate = useNavigate();
-  const [password, setPassword] = useState("");
-  const [status, setStatus] = useState("Introduce la clave de administracion.");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!password) {
-      setError("La clave es obligatoria.");
-      return;
-    }
-
-    setBusy(true);
-    setError(null);
-    setStatus("Validando");
-
-    try {
-      const session = await loginAdmin(password);
-      storeAdminSession({
-        accessToken: session.accessToken,
-        expiresAt: session.expiresAt,
-      });
-      navigate("/admin", { replace: true });
-    } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "No se pudo iniciar sesion.");
-      setStatus("Error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <main className="admin-shell">
-      <section className="admin-panel admin-login-panel" aria-labelledby="admin-login-title">
-        <header className="admin-header">
-          <div>
-            <p>Fernando Luna</p>
-            <h1 id="admin-login-title">Acceso de administracion</h1>
-          </div>
-          <a href="/">Volver</a>
-        </header>
-
-        <form className="admin-token-row" onSubmit={submitLogin}>
-          <label>
-            Clave
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              type="password"
-              autoComplete="current-password"
-            />
-          </label>
-          <button type="submit" disabled={busy}>
-            Entrar
-          </button>
-        </form>
-
-        <div className="admin-status" aria-live="polite">
-          <span>{status}</span>
-          {error ? <strong>{error}</strong> : null}
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function AdminPage() {
-  const navigate = useNavigate();
-  const [session, setSession] = useState(() => getStoredAdminSession());
-  const [draft, setDraft] = useState(() => JSON.stringify(adminContentFromSiteData(fallbackSiteData), null, 2));
-  const [status, setStatus] = useState("Sin cargar");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const loadAdminData = async () => {
-    const currentSession = getStoredAdminSession();
-    if (!currentSession) {
-      clearStoredAdminSession();
-      navigate("/", { replace: true });
-      return;
-    }
-
-    setSession(currentSession);
-    const controller = new AbortController();
-    setBusy(true);
-    setError(null);
-    setStatus("Cargando");
-
-    try {
-      const data = await fetchAdminSiteData(currentSession.accessToken, controller.signal);
-      setDraft(JSON.stringify(adminContentFromSiteData(data), null, 2));
-      setStatus("Contenido cargado");
-    } catch (loadError) {
-      if (loadError instanceof ApiError && loadError.status === 401) {
-        clearStoredAdminSession();
-        navigate("/", { replace: true });
-        return;
-      }
-
-      setError(loadError instanceof Error ? loadError.message : "No se pudo cargar el contenido.");
-      setStatus("Error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const saveAdminData = async () => {
-    const currentSession = getStoredAdminSession();
-    if (!currentSession) {
-      clearStoredAdminSession();
-      navigate("/", { replace: true });
-      return;
-    }
-
-    setSession(currentSession);
-    let parsed: AdminContentData;
-    try {
-      parsed = parseAdminDraft(draft);
-    } catch (parseError) {
-      setError(parseError instanceof Error ? parseError.message : "JSON invalido.");
-      return;
-    }
-
-    setBusy(true);
-    setError(null);
-    setStatus("Guardando");
-
-    try {
-      const saved = await saveAdminSiteData(currentSession.accessToken, parsed);
-      setDraft(JSON.stringify(saved, null, 2));
-      setStatus("Guardado");
-    } catch (saveError) {
-      if (saveError instanceof ApiError && saveError.status === 401) {
-        clearStoredAdminSession();
-        navigate("/", { replace: true });
-        return;
-      }
-
-      setError(saveError instanceof Error ? saveError.message : "No se pudo guardar el contenido.");
-      setStatus("Error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <main className="admin-shell">
-      <section className="admin-panel" aria-labelledby="admin-title">
-        <header className="admin-header">
-          <div>
-            <p>Fernando Luna</p>
-            <h1 id="admin-title">Administracion de contenido</h1>
-          </div>
-          <a href="/">Volver</a>
-        </header>
-
-        <div className="admin-token-row">
-          <span className="admin-session-expiry">
-            Sesion activa hasta {session ? formatDateTime(session.expiresAt) : "sin sesion"}
-          </span>
-          <button type="button" onClick={loadAdminData} disabled={busy}>
-            Cargar
-          </button>
-          <button type="button" onClick={saveAdminData} disabled={busy}>
-            Guardar
-          </button>
-        </div>
-
-        <div className="admin-status" aria-live="polite">
-          <span>{status}</span>
-          {error ? <strong>{error}</strong> : null}
-        </div>
-
-        <textarea
-          className="admin-editor"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          spellCheck={false}
-          aria-label="Contenido editable en JSON"
-        />
-      </section>
-    </main>
-  );
-}
-
-function adminContentFromSiteData(data: SiteData): AdminContentData {
-  return {
-    sections: data.sections,
-    sectionItems: data.sectionItems,
-    momentaryTabs: data.momentaryTabs,
-  };
-}
-
-function parseAdminDraft(value: string): AdminContentData {
-  const parsed = JSON.parse(value) as Partial<AdminContentData>;
-  if (!Array.isArray(parsed.sections)) throw new Error("sections debe ser una lista.");
-  if (!Array.isArray(parsed.sectionItems)) throw new Error("sectionItems debe ser una lista.");
-  if (!Array.isArray(parsed.momentaryTabs)) throw new Error("momentaryTabs debe ser una lista.");
-
-  return {
-    sections: parsed.sections,
-    sectionItems: parsed.sectionItems,
-    momentaryTabs: parsed.momentaryTabs,
-  };
-}
-
 function Footer({ links }: { links: ProfileLink[] }) {
   return (
     <footer className="footer">
@@ -1550,20 +1166,8 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("es", {
   year: "numeric",
 });
 
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  month: "short",
-  year: "numeric",
-});
-
 function formatDate(value: string) {
   return DATE_FORMATTER.format(new Date(value));
-}
-
-function formatDateTime(unixSeconds: number) {
-  return DATE_TIME_FORMATTER.format(new Date(unixSeconds * 1000));
 }
 
 export default App;

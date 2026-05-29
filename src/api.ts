@@ -19,6 +19,13 @@ export type AdminLoginResponse = {
   expiresAt: number;
 };
 
+// Editable content document handled by the admin panel (everything except the
+// server-managed revision counter).
+export type AdminContentData = Pick<
+  SiteData,
+  "profile" | "sections" | "sectionItems" | "momentaryTabs" | "momentaryItems"
+>;
+
 export async function fetchSiteData(signal?: AbortSignal): Promise<SiteData> {
   const response = await fetch(`${API_BASE_URL}/api/site`, {
     headers: {
@@ -65,14 +72,15 @@ export async function fetchAdminSiteData(token: string, signal?: AbortSignal): P
     throw new ApiError(response.status, await readApiError(response));
   }
 
-  return (await response.json()) as SiteData;
+  return normalizeSiteData((await response.json()) as Partial<SiteData>);
 }
 
 export async function saveAdminSiteData(
   token: string,
-  data: Pick<SiteData, "sections" | "sectionItems" | "momentaryTabs">,
+  data: AdminContentData,
+  expectedRevision: number,
   signal?: AbortSignal,
-) {
+): Promise<SiteData> {
   const response = await fetch(`${API_BASE_URL}/api/admin/site`, {
     method: "PUT",
     headers: {
@@ -80,7 +88,7 @@ export async function saveAdminSiteData(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, expectedRevision }),
     signal,
   });
 
@@ -88,7 +96,7 @@ export async function saveAdminSiteData(
     throw new ApiError(response.status, await readApiError(response));
   }
 
-  return (await response.json()) as Pick<SiteData, "sections" | "sectionItems" | "momentaryTabs">;
+  return normalizeSiteData((await response.json()) as Partial<SiteData>);
 }
 
 async function readApiError(response: Response) {
@@ -103,13 +111,11 @@ async function readApiError(response: Response) {
 function normalizeSiteData(payload: Partial<SiteData>): SiteData {
   return {
     profile: payload.profile ?? fallbackSiteData.profile,
-    cv: payload.cv ?? fallbackSiteData.cv,
-    projects: arrayOrFallback(payload.projects, fallbackSiteData.projects),
-    posts: arrayOrFallback(payload.posts, fallbackSiteData.posts),
-    docs: arrayOrFallback(payload.docs, fallbackSiteData.docs),
     sections: arrayOrFallback(payload.sections, fallbackSiteData.sections),
     sectionItems: arrayOrFallback(payload.sectionItems, fallbackSiteData.sectionItems),
     momentaryTabs: arrayOrFallback(payload.momentaryTabs, fallbackSiteData.momentaryTabs),
+    momentaryItems: arrayOrFallback(payload.momentaryItems, fallbackSiteData.momentaryItems),
+    revision: typeof payload.revision === "number" ? payload.revision : 0,
   };
 }
 
