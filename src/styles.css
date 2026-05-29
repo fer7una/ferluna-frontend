@@ -419,6 +419,9 @@ h1 {
 .energy-orb {
   aspect-ratio: 1;
   background: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
   border: 0;
   border-radius: 50%;
   cursor: pointer;
@@ -429,6 +432,10 @@ h1 {
   transition: filter 620ms var(--ease-glide), transform 620ms var(--ease-glide);
   width: 100%;
   z-index: 2;
+}
+
+.sun-effect--fallback ~ .orb-ui-rail .energy-orb {
+  background-image: url("/img/sun.png");
 }
 
 .energy-orb::after {
@@ -1568,10 +1575,14 @@ h1 {
 
 .admin-header {
   align-items: center;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 12px;
-  justify-content: space-between;
+  grid-template-columns: 1fr auto;
+}
+
+/* The 1fr track gives the eyebrow + title the whole row up to the link. */
+.admin-header-titles {
+  min-width: 0;
 }
 
 .admin-header p {
@@ -1587,6 +1598,13 @@ h1 {
   font-size: clamp(1.4rem, 2.6vw, 2rem);
   line-height: 1.15;
   margin: 0;
+}
+
+/* Title fills the full width of its parent (.admin-header-titles). */
+.admin-title {
+  display: block;
+  max-width: none;
+  width: 100%;
 }
 
 .admin-header a {
@@ -1743,13 +1761,21 @@ button.admin-danger:hover {
 }
 
 .admin-dirty {
+  align-items: center;
   color: var(--muted);
+  display: inline-flex;
   font-size: 0.85rem;
+  gap: 6px;
 }
 
 .admin-dirty.is-dirty {
   color: #b45309;
   font-weight: 600;
+}
+
+.admin-dirty-icon {
+  color: #ea580c;
+  flex-shrink: 0;
 }
 
 .admin-errors {
@@ -2037,18 +2063,31 @@ button.admin-danger:hover {
 }
 
 .admin-nav-item {
+  align-items: center;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;
   color: var(--ink);
   cursor: pointer;
+  display: flex;
   font: inherit;
-  overflow: hidden;
+  gap: 8px;
   padding: 10px 12px;
   text-align: left;
-  text-overflow: ellipsis;
   transition: background 0.16s ease;
+}
+
+.admin-nav-item-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.admin-nav-dirty-icon {
+  color: #ea580c;
+  flex-shrink: 0;
 }
 
 .admin-nav-item:hover {
@@ -2087,6 +2126,45 @@ button.admin-danger:hover {
   margin: 0;
 }
 
+.admin-delete-confirm {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-delete-confirm-text {
+  align-items: center;
+  color: #b45309;
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.admin-delete-confirm-text svg {
+  color: #ea580c;
+  flex-shrink: 0;
+}
+
+.admin-delete-confirm button {
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+.admin-delete-confirm button:not(.admin-danger) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.admin-delete-confirm button:not(.admin-danger):hover {
+  background: var(--surface-strong);
+}
+
 .admin-divider {
   border: none;
   border-top: 1px solid var(--line);
@@ -2096,6 +2174,15 @@ button.admin-danger:hover {
 @media (max-width: 720px) {
   .admin-shell {
     padding: 16px;
+  }
+
+  /* Stack the title over the link on narrow screens. */
+  .admin-header {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-header a {
+    justify-self: start;
   }
 
   .admin-toolbar {

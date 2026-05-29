@@ -11,7 +11,15 @@ export function getStoredAdminSession(): AdminSession | null {
     if (!rawSession) return null;
 
     const session = JSON.parse(rawSession) as Partial<AdminSession>;
-    if (!session.accessToken || !session.expiresAt) return null;
+    if (
+      typeof session.accessToken !== "string" ||
+      session.accessToken.length === 0 ||
+      typeof session.expiresAt !== "number" ||
+      !Number.isFinite(session.expiresAt)
+    ) {
+      clearStoredAdminSession();
+      return null;
+    }
     if (Date.now() >= session.expiresAt * 1000) {
       clearStoredAdminSession();
       return null;
@@ -22,6 +30,7 @@ export function getStoredAdminSession(): AdminSession | null {
       expiresAt: session.expiresAt,
     };
   } catch {
+    clearStoredAdminSession();
     return null;
   }
 }
@@ -51,5 +60,9 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es", {
 });
 
 export function formatSessionExpiry(unixSeconds: number) {
+  if (!Number.isFinite(unixSeconds)) {
+    return "sesión inválida";
+  }
+
   return DATE_TIME_FORMATTER.format(new Date(unixSeconds * 1000));
 }

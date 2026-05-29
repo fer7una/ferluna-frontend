@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react";
+import { Component, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { SunCanvas } from "./SunCanvas";
 import type {
   ResolvedSunEffectConfig,
@@ -23,6 +23,37 @@ const DEFAULT_QUALITY: SunEffectQuality = "high";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function shouldUseWebGL(available: boolean) {
+  const renderer = import.meta.env.VITE_SUN_RENDERER;
+  if (!available || renderer === "css") return false;
+
+  return true;
+}
+
+class SunCanvasBoundary extends Component<
+  { children: ReactNode; onFallback: () => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error("SunEffect WebGL fallback activated", error);
+    this.props.onFallback();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+
+    return this.props.children;
+  }
 }
 
 export function SunEffect({
@@ -51,6 +82,8 @@ export function SunEffect({
 }: SunEffectProps) {
   const reducedMotion = useReducedMotion();
   const webGLAvailable = useWebGLAvailable();
+  const [canvasFailed, setCanvasFailed] = useState(false);
+  const useWebGL = shouldUseWebGL(webGLAvailable) && !canvasFailed;
   const pointerEnabled = interactive && !paused && !reducedMotion;
   const pointer = usePointerUniforms(pointerEnabled, hoverTargetRadius, anchorRef);
   const preset = usePerformanceQuality(quality, reducedMotion);
@@ -113,7 +146,7 @@ export function SunEffect({
     "sun-effect",
     pointerEnabled && capturePointerEvents ? "sun-effect--interactive" : "",
     reducedMotion ? "sun-effect--reduced-motion" : "",
-    !webGLAvailable ? "sun-effect--fallback" : "",
+    !useWebGL ? "sun-effect--fallback" : "",
     className ?? "",
   ]
     .filter(Boolean)
@@ -131,14 +164,16 @@ export function SunEffect({
       {...accessibilityProps}
       {...(pointerEnabled && capturePointerEvents ? pointer.handlers : undefined)}
     >
-      {webGLAvailable ? (
-        <SunCanvas
-          anchorRef={anchorRef}
-          config={config}
-          pointer={pointer}
-          preset={preset}
-          reducedMotion={reducedMotion}
-        />
+      {useWebGL ? (
+        <SunCanvasBoundary onFallback={() => setCanvasFailed(true)}>
+          <SunCanvas
+            anchorRef={anchorRef}
+            config={config}
+            pointer={pointer}
+            preset={preset}
+            reducedMotion={reducedMotion}
+          />
+        </SunCanvasBoundary>
       ) : (
         <div className="sun-effect__static" />
       )}
