@@ -79,11 +79,12 @@ export function SunEffect({
   ariaLabel,
   capturePointerEvents = true,
   hoverTargetRadius,
+  forceFallback = false,
 }: SunEffectProps) {
   const reducedMotion = useReducedMotion();
   const webGLAvailable = useWebGLAvailable();
   const [canvasFailed, setCanvasFailed] = useState(false);
-  const useWebGL = shouldUseWebGL(webGLAvailable) && !canvasFailed;
+  const useWebGL = shouldUseWebGL(webGLAvailable) && !canvasFailed && !forceFallback;
   const pointerEnabled = interactive && !paused && !reducedMotion;
   const pointer = usePointerUniforms(pointerEnabled, hoverTargetRadius, anchorRef);
   const preset = usePerformanceQuality(quality, reducedMotion);

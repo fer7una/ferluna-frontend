@@ -33,6 +33,8 @@ export type SunEffectProps = {
   ariaLabel?: string;
   capturePointerEvents?: boolean;
   hoverTargetRadius?: number;
+  /** Force the CSS fallback at runtime regardless of WebGL availability. */
+  forceFallback?: boolean;
 };
 
 export type ResolvedSunEffectConfig = {

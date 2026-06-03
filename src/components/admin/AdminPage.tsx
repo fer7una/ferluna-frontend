@@ -7,6 +7,16 @@ import {
   saveAdminSiteData,
   type AdminContentData,
 } from "../../api";
+import {
+  emptyDoc,
+  emptyLink,
+  emptyMomentaryItem,
+  emptySection,
+  emptySectionItem,
+  emptyTab,
+  prepareForSave,
+  validateDoc as validateContentDoc,
+} from "../../features/adminContent/document";
 import { ICON_KEYS } from "../../icons";
 import type {
   LinkKind,
@@ -14,6 +24,7 @@ import type {
   MomentaryTab,
   ProfileLink,
   SectionItem,
+  SiteVisualSettings,
   SiteSection,
 } from "../../types";
 import {
@@ -39,125 +50,73 @@ const LINK_KIND_OPTIONS: { value: LinkKind; label: string }[] = [
   { value: "mail", label: "Email" },
   { value: "web", label: "Web" },
 ];
-const FIRST_ICON = ICON_KEYS[0] ?? "globe";
-
-function emptyDoc(): AdminContentData {
-  return {
-    profile: {
-      name: "",
-      role: "",
-      tagline: "",
-      location: "",
-      email: "",
-      avatarAlt: "",
-      links: [],
-      highlights: [],
-    },
-    sections: [],
-    sectionItems: [],
-    momentaryTabs: [],
-    momentaryItems: [],
-  };
-}
-
-function emptySection(): SiteSection {
-  return {
-    id: "",
-    route: "",
-    label: "",
-    eyebrow: "",
-    title: "",
-    description: "",
-    iconKey: FIRST_ICON,
-    orbit: "inner",
-    angle: 0,
-    order: 0,
-    visibleFrom: null,
-    visibleUntil: null,
-    enabled: true,
-  };
-}
-
-function emptySectionItem(sectionId: string): SectionItem {
-  return {
-    id: "",
-    sectionId,
-    kind: "card",
-    kicker: "",
-    title: "",
-    meta: null,
-    description: "",
-    href: null,
-    tags: [],
-    iconKey: FIRST_ICON,
-    order: 0,
-    visibleFrom: null,
-    visibleUntil: null,
-    featured: false,
-  };
-}
-
-function emptyTab(): MomentaryTab {
-  return {
-    id: "",
-    label: "",
-    iconKey: FIRST_ICON,
-    angle: 0,
-    order: 0,
-    visibleFrom: null,
-    visibleUntil: null,
-    enabled: true,
-  };
-}
-
-function emptyMomentaryItem(tabId: string): MomentaryItem {
-  return {
-    id: "",
-    tabId,
-    kind: "note",
-    kicker: "",
-    title: "",
-    meta: null,
-    description: "",
-    href: null,
-    tags: [],
-    iconKey: FIRST_ICON,
-    order: 0,
-    visibleFrom: null,
-    visibleUntil: null,
-    featured: false,
-  };
-}
-
-function emptyLink(): ProfileLink {
-  return { label: "", href: "", kind: "web" };
-}
+const FIELD_HELP = {
+  profile: {
+    name: "Nombre publico que aparece como identidad principal del portal.",
+    role: "Rol profesional que se muestra junto al nombre.",
+    location: "Ubicacion publica asociada al perfil.",
+    email: "Correo de contacto publico.",
+    tagline: "Frase breve que resume la propuesta o enfoque del perfil.",
+    avatarAlt: "Texto alternativo usado por lectores de pantalla para describir el avatar.",
+    highlights: "Lista corta de ideas destacadas del perfil, separadas por comas.",
+  },
+  visual: {
+    sectionOrbitDurationSeconds: "Segundos que tarda la orbita de secciones en dar una vuelta completa.",
+    momentaryOrbitDurationSeconds: "Segundos que tarda la orbita de pestanas momentaneas en dar una vuelta completa.",
+  },
+  link: {
+    label: "Texto interno para identificar el enlace de marca.",
+    href: "URL o mailto al que apunta el enlace.",
+    kind: "Tipo de enlace; decide que icono se muestra en la cabecera.",
+  },
+  section: {
+    id: "Identificador unico de la seccion; tambien vincula sus items.",
+    route: "Ruta publica sin barra inicial, por ejemplo cv o projects.",
+    label: "Texto corto del boton que aparece en la orbita 1.",
+    eyebrow: "Texto pequeno que aparece encima del titulo de la seccion.",
+    title: "Titulo principal de la vista de seccion.",
+    iconKey: "Icono del catalogo visual usado en el boton orbital.",
+    angle: "Posicion inicial del boton en la orbita, expresada en grados.",
+    order: "Numero usado para ordenar secciones; menor aparece antes.",
+    description: "Texto descriptivo de la seccion y tooltip del boton orbital.",
+    visibleFrom: "Fecha desde la que la seccion puede aparecer; vacio significa sin inicio programado.",
+    visibleUntil: "Fecha desde la que la seccion deja de aparecer; vacio significa sin final programado.",
+    enabled: "Activa o desactiva la seccion sin borrarla.",
+  },
+  tab: {
+    id: "Identificador unico de la pestana momentanea; tambien vincula sus items.",
+    label: "Texto del boton que aparece en la orbita 2.",
+    iconKey: "Icono del catalogo visual usado en la pestana.",
+    angle: "Posicion inicial del boton en la orbita, expresada en grados.",
+    order: "Numero usado para ordenar pestanas; menor aparece antes.",
+    visibleFrom: "Fecha desde la que la pestana puede aparecer; vacio significa sin inicio programado.",
+    visibleUntil: "Fecha desde la que la pestana deja de aparecer; vacio significa sin final programado.",
+    enabled: "Activa o desactiva la pestana sin borrarla.",
+  },
+  item: {
+    id: "Identificador unico del item dentro del documento de contenido.",
+    kind: "Tipo semantico del item, por ejemplo card, project, post, doc o note.",
+    iconKey: "Icono del catalogo visual usado en la tarjeta.",
+    kicker: "Etiqueta corta que aparece encima del titulo de la tarjeta.",
+    title: "Titulo principal de la tarjeta.",
+    meta: "Dato secundario opcional, como empresa, estado o subtitulo.",
+    href: "Enlace opcional de la tarjeta; si esta vacio no se muestra accion.",
+    order: "Numero usado para ordenar items; menor aparece antes.",
+    description: "Texto principal de la tarjeta.",
+    tags: "Etiquetas visibles de la tarjeta, separadas por comas.",
+    visibleFrom: "Fecha desde la que el item puede aparecer; vacio significa sin inicio programado.",
+    visibleUntil: "Fecha desde la que el item deja de aparecer; vacio significa sin final programado.",
+    featured: "Marca el item como destacado para estilos o tratamiento visual.",
+  },
+};
 
 // Which entity the sidebar is editing. Sections/tabs are addressed by index so
 // the selection survives the user editing their (mutable) id.
 type Selection =
   | { kind: "identity" }
+  | { kind: "visual" }
   | { kind: "section"; index: number }
   | { kind: "tab"; index: number };
-
-// Round every order to an integer (the backend stores order as INTEGER) and
-// drop empty optional text to null before sending.
-function prepareForSave(doc: AdminContentData): AdminContentData {
-  const cleanItem = <T extends SectionItem | MomentaryItem>(item: T): T => ({
-    ...item,
-    order: Math.round(item.order),
-    meta: item.meta && item.meta.trim() ? item.meta.trim() : null,
-    href: item.href && item.href.trim() ? item.href.trim() : null,
-  });
-
-  return {
-    profile: doc.profile,
-    sections: doc.sections.map((section) => ({ ...section, order: Math.round(section.order) })),
-    sectionItems: doc.sectionItems.map(cleanItem),
-    momentaryTabs: doc.momentaryTabs.map((tab) => ({ ...tab, order: Math.round(tab.order) })),
-    momentaryItems: doc.momentaryItems.map(cleanItem),
-  };
-}
 
 function validateDoc(doc: AdminContentData): string[] {
   const errors: string[] = [];
@@ -176,6 +135,19 @@ function validateDoc(doc: AdminContentData): string[] {
     required(link.label, `Enlace #${index + 1}: falta la etiqueta.`);
     required(link.href, `Enlace #${index + 1}: falta la URL.`);
   });
+
+  if (
+    !Number.isFinite(doc.visualSettings.sectionOrbitDurationSeconds) ||
+    doc.visualSettings.sectionOrbitDurationSeconds <= 0
+  ) {
+    errors.push("La duracion de la 1a orbita debe ser mayor que 0.");
+  }
+  if (
+    !Number.isFinite(doc.visualSettings.momentaryOrbitDurationSeconds) ||
+    doc.visualSettings.momentaryOrbitDurationSeconds <= 0
+  ) {
+    errors.push("La duracion de la 2a orbita debe ser mayor que 0.");
+  }
 
   const sectionIds = new Set<string>();
   const routes = new Set<string>();
@@ -274,6 +246,7 @@ export function AdminPage() {
   const applyLoaded = useCallback((data: AdminContentData & { revision: number }) => {
     const next: AdminContentData = {
       profile: data.profile,
+      visualSettings: data.visualSettings,
       sections: data.sections,
       sectionItems: data.sectionItems,
       momentaryTabs: data.momentaryTabs,
@@ -344,7 +317,7 @@ export function AdminPage() {
       return;
     }
 
-    const validationErrors = validateDoc(doc);
+    const validationErrors = validateContentDoc(doc);
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
       setStatus("Revisa los campos");
@@ -393,6 +366,8 @@ export function AdminPage() {
 
   const isProfileDirty =
     savedDoc !== null && JSON.stringify(doc.profile) !== JSON.stringify(savedDoc.profile);
+  const isVisualDirty =
+    savedDoc !== null && JSON.stringify(doc.visualSettings) !== JSON.stringify(savedDoc.visualSettings);
 
   const isSectionDirty = (section: SiteSection): boolean => {
     if (!savedDoc) return false;
@@ -416,6 +391,11 @@ export function AdminPage() {
 
   const patchProfile = (patch: Partial<AdminContentData["profile"]>) =>
     setDoc((current) => ({ ...current, profile: { ...current.profile, ...patch } }));
+  const patchVisualSettings = (patch: Partial<SiteVisualSettings>) =>
+    setDoc((current) => ({
+      ...current,
+      visualSettings: { ...current.visualSettings, ...patch },
+    }));
 
   const sections = doc.sections;
   const tabs = doc.momentaryTabs;
@@ -560,6 +540,15 @@ export function AdminPage() {
               <NavDirtyMark show={isProfileDirty} />
             </button>
 
+            <button
+              type="button"
+              className={`admin-nav-item ${active.kind === "visual" ? "is-active" : ""}`}
+              onClick={() => setSelection({ kind: "visual" })}
+            >
+              <span className="admin-nav-item-label">Visual</span>
+              <NavDirtyMark show={isVisualDirty} />
+            </button>
+
             <div className="admin-nav-group">
               <div className="admin-nav-group-head">
                 <span>Secciones · 1ª órbita</span>
@@ -616,6 +605,8 @@ export function AdminPage() {
           <fieldset className="admin-section admin-content" disabled={busy}>
             {active.kind === "identity" ? (
               <IdentityEditor profile={doc.profile} patchProfile={patchProfile} />
+            ) : active.kind === "visual" ? (
+              <VisualSettingsEditor settings={doc.visualSettings} patchSettings={patchVisualSettings} />
             ) : active.kind === "section" ? (
               <SectionEditor
                 section={sections[active.index]}
@@ -662,18 +653,19 @@ function IdentityEditor({
         <h2>Identidad</h2>
       </div>
       <div className="admin-grid">
-        <TextField label="Nombre" value={profile.name} onChange={(value) => patchProfile({ name: value })} />
-        <TextField label="Rol" value={profile.role} onChange={(value) => patchProfile({ role: value })} />
-        <TextField label="Ubicación" value={profile.location} onChange={(value) => patchProfile({ location: value })} />
-        <TextField label="Email" type="email" value={profile.email} onChange={(value) => patchProfile({ email: value })} />
+        <TextField label="Nombre" value={profile.name} tooltip={FIELD_HELP.profile.name} onChange={(value) => patchProfile({ name: value })} />
+        <TextField label="Rol" value={profile.role} tooltip={FIELD_HELP.profile.role} onChange={(value) => patchProfile({ role: value })} />
+        <TextField label="Ubicación" value={profile.location} tooltip={FIELD_HELP.profile.location} onChange={(value) => patchProfile({ location: value })} />
+        <TextField label="Email" type="email" value={profile.email} tooltip={FIELD_HELP.profile.email} onChange={(value) => patchProfile({ email: value })} />
       </div>
-      <TextAreaField label="Tagline" value={profile.tagline} onChange={(value) => patchProfile({ tagline: value })} />
+      <TextAreaField label="Tagline" value={profile.tagline} tooltip={FIELD_HELP.profile.tagline} onChange={(value) => patchProfile({ tagline: value })} />
       <TextField
         label="Texto alternativo del avatar"
         value={profile.avatarAlt}
+        tooltip={FIELD_HELP.profile.avatarAlt}
         onChange={(value) => patchProfile({ avatarAlt: value })}
       />
-      <TagsField label="Highlights" value={profile.highlights} onChange={(value) => patchProfile({ highlights: value })} />
+      <TagsField label="Highlights" value={profile.highlights} tooltip={FIELD_HELP.profile.highlights} onChange={(value) => patchProfile({ highlights: value })} />
       <hr className="admin-divider" />
       <CollectionEditor<ProfileLink>
         title="Enlaces de marca"
@@ -684,17 +676,48 @@ function IdentityEditor({
         describeItem={(link, index) => link.label || `Enlace ${index + 1}`}
         renderItem={(link, update) => (
           <div className="admin-grid">
-            <TextField label="Etiqueta" value={link.label} onChange={(value) => update({ ...link, label: value })} />
-            <TextField label="URL" value={link.href} onChange={(value) => update({ ...link, href: value })} />
+            <TextField label="Etiqueta" value={link.label} tooltip={FIELD_HELP.link.label} onChange={(value) => update({ ...link, label: value })} />
+            <TextField label="URL" value={link.href} tooltip={FIELD_HELP.link.href} onChange={(value) => update({ ...link, href: value })} />
             <SelectField
               label="Tipo"
               value={link.kind}
               options={LINK_KIND_OPTIONS}
+              tooltip={FIELD_HELP.link.kind}
               onChange={(value) => update({ ...link, kind: value as LinkKind })}
             />
           </div>
         )}
       />
+    </>
+  );
+}
+
+function VisualSettingsEditor({
+  settings,
+  patchSettings,
+}: {
+  settings: SiteVisualSettings;
+  patchSettings: (patch: Partial<SiteVisualSettings>) => void;
+}) {
+  return (
+    <>
+      <div className="admin-entity-head">
+        <h2>Visual</h2>
+      </div>
+      <div className="admin-grid">
+        <NumberField
+          label="Duracion 1a orbita (s)"
+          value={settings.sectionOrbitDurationSeconds}
+          tooltip={FIELD_HELP.visual.sectionOrbitDurationSeconds}
+          onChange={(value) => patchSettings({ sectionOrbitDurationSeconds: value })}
+        />
+        <NumberField
+          label="Duracion 2a orbita (s)"
+          value={settings.momentaryOrbitDurationSeconds}
+          tooltip={FIELD_HELP.visual.momentaryOrbitDurationSeconds}
+          onChange={(value) => patchSettings({ momentaryOrbitDurationSeconds: value })}
+        />
+      </div>
     </>
   );
 }
@@ -753,21 +776,21 @@ function SectionEditor({
         )}
       </div>
       <div className="admin-grid">
-        <TextField label="id" value={section.id} onChange={(value) => onChange({ ...section, id: value })} />
-        <TextField label="route" value={section.route} onChange={(value) => onChange({ ...section, route: value })} />
-        <TextField label="label" value={section.label} onChange={(value) => onChange({ ...section, label: value })} />
-        <TextField label="eyebrow" value={section.eyebrow} onChange={(value) => onChange({ ...section, eyebrow: value })} />
-        <TextField label="title" value={section.title} onChange={(value) => onChange({ ...section, title: value })} />
-        <SelectField label="icono" value={section.iconKey} options={ICON_OPTIONS} onChange={(value) => onChange({ ...section, iconKey: value })} />
-        <NumberField label="ángulo" value={section.angle} onChange={(value) => onChange({ ...section, angle: value })} />
-        <NumberField label="orden" value={section.order} onChange={(value) => onChange({ ...section, order: value })} />
+        <TextField label="id" value={section.id} tooltip={FIELD_HELP.section.id} onChange={(value) => onChange({ ...section, id: value })} />
+        <TextField label="route" value={section.route} tooltip={FIELD_HELP.section.route} onChange={(value) => onChange({ ...section, route: value })} />
+        <TextField label="label" value={section.label} tooltip={FIELD_HELP.section.label} onChange={(value) => onChange({ ...section, label: value })} />
+        <TextField label="eyebrow" value={section.eyebrow} tooltip={FIELD_HELP.section.eyebrow} onChange={(value) => onChange({ ...section, eyebrow: value })} />
+        <TextField label="title" value={section.title} tooltip={FIELD_HELP.section.title} onChange={(value) => onChange({ ...section, title: value })} />
+        <SelectField label="icono" value={section.iconKey} options={ICON_OPTIONS} tooltip={FIELD_HELP.section.iconKey} onChange={(value) => onChange({ ...section, iconKey: value })} />
+        <NumberField label="ángulo" value={section.angle} tooltip={FIELD_HELP.section.angle} onChange={(value) => onChange({ ...section, angle: value })} />
+        <NumberField label="orden" value={section.order} tooltip={FIELD_HELP.section.order} onChange={(value) => onChange({ ...section, order: value })} />
       </div>
-      <TextAreaField label="descripción" value={section.description} onChange={(value) => onChange({ ...section, description: value })} />
+      <TextAreaField label="descripción" value={section.description} tooltip={FIELD_HELP.section.description} onChange={(value) => onChange({ ...section, description: value })} />
       <div className="admin-grid">
-        <DateTimeField label="visible desde" value={section.visibleFrom} onChange={(value) => onChange({ ...section, visibleFrom: value })} />
-        <DateTimeField label="visible hasta" value={section.visibleUntil} onChange={(value) => onChange({ ...section, visibleUntil: value })} />
+        <DateTimeField label="visible desde" value={section.visibleFrom} tooltip={FIELD_HELP.section.visibleFrom} onChange={(value) => onChange({ ...section, visibleFrom: value })} />
+        <DateTimeField label="visible hasta" value={section.visibleUntil} tooltip={FIELD_HELP.section.visibleUntil} onChange={(value) => onChange({ ...section, visibleUntil: value })} />
       </div>
-      <CheckboxField label="Habilitada" value={section.enabled} onChange={(value) => onChange({ ...section, enabled: value })} />
+      <CheckboxField label="Habilitada" value={section.enabled} tooltip={FIELD_HELP.section.enabled} onChange={(value) => onChange({ ...section, enabled: value })} />
       <hr className="admin-divider" />
       <CollectionEditor<SectionItem>
         title="Items de esta sección"
@@ -804,17 +827,17 @@ function TabEditor({
         </button>
       </div>
       <div className="admin-grid">
-        <TextField label="id" value={tab.id} onChange={(value) => onChange({ ...tab, id: value })} />
-        <TextField label="label" value={tab.label} onChange={(value) => onChange({ ...tab, label: value })} />
-        <SelectField label="icono" value={tab.iconKey} options={ICON_OPTIONS} onChange={(value) => onChange({ ...tab, iconKey: value })} />
-        <NumberField label="ángulo" value={tab.angle} onChange={(value) => onChange({ ...tab, angle: value })} />
-        <NumberField label="orden" value={tab.order} onChange={(value) => onChange({ ...tab, order: value })} />
+        <TextField label="id" value={tab.id} tooltip={FIELD_HELP.tab.id} onChange={(value) => onChange({ ...tab, id: value })} />
+        <TextField label="label" value={tab.label} tooltip={FIELD_HELP.tab.label} onChange={(value) => onChange({ ...tab, label: value })} />
+        <SelectField label="icono" value={tab.iconKey} options={ICON_OPTIONS} tooltip={FIELD_HELP.tab.iconKey} onChange={(value) => onChange({ ...tab, iconKey: value })} />
+        <NumberField label="ángulo" value={tab.angle} tooltip={FIELD_HELP.tab.angle} onChange={(value) => onChange({ ...tab, angle: value })} />
+        <NumberField label="orden" value={tab.order} tooltip={FIELD_HELP.tab.order} onChange={(value) => onChange({ ...tab, order: value })} />
       </div>
       <div className="admin-grid">
-        <DateTimeField label="visible desde" value={tab.visibleFrom} onChange={(value) => onChange({ ...tab, visibleFrom: value })} />
-        <DateTimeField label="visible hasta" value={tab.visibleUntil} onChange={(value) => onChange({ ...tab, visibleUntil: value })} />
+        <DateTimeField label="visible desde" value={tab.visibleFrom} tooltip={FIELD_HELP.tab.visibleFrom} onChange={(value) => onChange({ ...tab, visibleFrom: value })} />
+        <DateTimeField label="visible hasta" value={tab.visibleUntil} tooltip={FIELD_HELP.tab.visibleUntil} onChange={(value) => onChange({ ...tab, visibleUntil: value })} />
       </div>
-      <CheckboxField label="Habilitada" value={tab.enabled} onChange={(value) => onChange({ ...tab, enabled: value })} />
+      <CheckboxField label="Habilitada" value={tab.enabled} tooltip={FIELD_HELP.tab.enabled} onChange={(value) => onChange({ ...tab, enabled: value })} />
       <hr className="admin-divider" />
       <CollectionEditor<MomentaryItem>
         title="Items de esta pestaña"
@@ -839,22 +862,22 @@ function ItemEditor<T extends SectionItem | MomentaryItem>({
   return (
     <>
       <div className="admin-grid">
-        <TextField label="id" value={item.id} onChange={(value) => onChange({ ...item, id: value })} />
-        <TextField label="kind" value={item.kind} onChange={(value) => onChange({ ...item, kind: value })} hint="card, project, post, doc, note…" />
-        <SelectField label="icono" value={item.iconKey} options={ICON_OPTIONS} onChange={(value) => onChange({ ...item, iconKey: value })} />
-        <TextField label="kicker" value={item.kicker} onChange={(value) => onChange({ ...item, kicker: value })} />
-        <TextField label="title" value={item.title} onChange={(value) => onChange({ ...item, title: value })} />
-        <TextField label="meta" value={item.meta ?? ""} onChange={(value) => onChange({ ...item, meta: value })} />
-        <TextField label="href" value={item.href ?? ""} onChange={(value) => onChange({ ...item, href: value })} />
-        <NumberField label="orden" value={item.order} onChange={(value) => onChange({ ...item, order: value })} />
+        <TextField label="id" value={item.id} tooltip={FIELD_HELP.item.id} onChange={(value) => onChange({ ...item, id: value })} />
+        <TextField label="kind" value={item.kind} tooltip={FIELD_HELP.item.kind} onChange={(value) => onChange({ ...item, kind: value })} hint="card, project, post, doc, note…" />
+        <SelectField label="icono" value={item.iconKey} options={ICON_OPTIONS} tooltip={FIELD_HELP.item.iconKey} onChange={(value) => onChange({ ...item, iconKey: value })} />
+        <TextField label="kicker" value={item.kicker} tooltip={FIELD_HELP.item.kicker} onChange={(value) => onChange({ ...item, kicker: value })} />
+        <TextField label="title" value={item.title} tooltip={FIELD_HELP.item.title} onChange={(value) => onChange({ ...item, title: value })} />
+        <TextField label="meta" value={item.meta ?? ""} tooltip={FIELD_HELP.item.meta} onChange={(value) => onChange({ ...item, meta: value })} />
+        <TextField label="href" value={item.href ?? ""} tooltip={FIELD_HELP.item.href} onChange={(value) => onChange({ ...item, href: value })} />
+        <NumberField label="orden" value={item.order} tooltip={FIELD_HELP.item.order} onChange={(value) => onChange({ ...item, order: value })} />
       </div>
-      <TextAreaField label="descripción" value={item.description} onChange={(value) => onChange({ ...item, description: value })} />
-      <TagsField label="tags" value={item.tags} onChange={(value) => onChange({ ...item, tags: value })} />
+      <TextAreaField label="descripción" value={item.description} tooltip={FIELD_HELP.item.description} onChange={(value) => onChange({ ...item, description: value })} />
+      <TagsField label="tags" value={item.tags} tooltip={FIELD_HELP.item.tags} onChange={(value) => onChange({ ...item, tags: value })} />
       <div className="admin-grid">
-        <DateTimeField label="visible desde" value={item.visibleFrom} onChange={(value) => onChange({ ...item, visibleFrom: value })} />
-        <DateTimeField label="visible hasta" value={item.visibleUntil} onChange={(value) => onChange({ ...item, visibleUntil: value })} />
+        <DateTimeField label="visible desde" value={item.visibleFrom} tooltip={FIELD_HELP.item.visibleFrom} onChange={(value) => onChange({ ...item, visibleFrom: value })} />
+        <DateTimeField label="visible hasta" value={item.visibleUntil} tooltip={FIELD_HELP.item.visibleUntil} onChange={(value) => onChange({ ...item, visibleUntil: value })} />
       </div>
-      <CheckboxField label="Destacado" value={item.featured} onChange={(value) => onChange({ ...item, featured: value })} />
+      <CheckboxField label="Destacado" value={item.featured} tooltip={FIELD_HELP.item.featured} onChange={(value) => onChange({ ...item, featured: value })} />
     </>
   );
 }

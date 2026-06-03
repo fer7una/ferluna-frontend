@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { loginAdmin } from "../../api";
+import { FieldTooltip } from "./fields";
 import { storeAdminSession } from "./session";
 
 export function AdminLoginPage() {
@@ -56,7 +57,10 @@ export function AdminLoginPage() {
 
         <form className="admin-token-row" onSubmit={submitLogin}>
           <label className="admin-field">
-            <span className="admin-field-label">Clave</span>
+            <span className="admin-field-label-row">
+              <span className="admin-field-label">Clave</span>
+              <FieldTooltip text="Clave privada de administracion configurada en el backend." />
+            </span>
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}

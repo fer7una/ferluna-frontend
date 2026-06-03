@@ -1,24 +1,47 @@
+import { CircleHelp } from "lucide-react";
 import type { ReactNode } from "react";
 
 type BaseFieldProps = {
   label: string;
   error?: string;
   hint?: string;
+  tooltip?: string;
 };
 
 function FieldShell({
   label,
   error,
   hint,
+  tooltip,
   children,
 }: BaseFieldProps & { children: ReactNode }) {
   return (
     <label className={`admin-field ${error ? "has-error" : ""}`}>
-      <span className="admin-field-label">{label}</span>
+      <span className="admin-field-label-row">
+        <span className="admin-field-label">{label}</span>
+        {tooltip ? <FieldTooltip text={tooltip} /> : null}
+      </span>
       {children}
       {hint && !error ? <span className="admin-field-hint">{hint}</span> : null}
       {error ? <span className="admin-field-error">{error}</span> : null}
     </label>
+  );
+}
+
+export function FieldTooltip({ text }: { text: string }) {
+  return (
+    <span
+      className="admin-field-tooltip"
+      role="img"
+      aria-label={text}
+      tabIndex={0}
+      title={text}
+    >
+      <CircleHelp size={14} aria-hidden="true" />
+      <span className="admin-field-tooltip-popover" role="tooltip">
+        {text}
+      </span>
+    </span>
   );
 }
 
@@ -30,6 +53,7 @@ export function TextField({
   placeholder,
   error,
   hint,
+  tooltip,
 }: BaseFieldProps & {
   value: string;
   onChange: (value: string) => void;
@@ -37,7 +61,7 @@ export function TextField({
   placeholder?: string;
 }) {
   return (
-    <FieldShell label={label} error={error} hint={hint}>
+    <FieldShell label={label} error={error} hint={hint} tooltip={tooltip}>
       <input
         type={type}
         value={value}
@@ -55,13 +79,14 @@ export function TextAreaField({
   rows = 3,
   error,
   hint,
+  tooltip,
 }: BaseFieldProps & {
   value: string;
   onChange: (value: string) => void;
   rows?: number;
 }) {
   return (
-    <FieldShell label={label} error={error} hint={hint}>
+    <FieldShell label={label} error={error} hint={hint} tooltip={tooltip}>
       <textarea rows={rows} value={value} onChange={(event) => onChange(event.target.value)} />
     </FieldShell>
   );
@@ -73,12 +98,13 @@ export function NumberField({
   onChange,
   error,
   hint,
+  tooltip,
 }: BaseFieldProps & {
   value: number;
   onChange: (value: number) => void;
 }) {
   return (
-    <FieldShell label={label} error={error} hint={hint}>
+    <FieldShell label={label} error={error} hint={hint} tooltip={tooltip}>
       <input
         type="number"
         value={Number.isFinite(value) ? value : 0}
@@ -98,13 +124,14 @@ export function SelectField({
   onChange,
   error,
   hint,
+  tooltip,
 }: BaseFieldProps & {
   value: string;
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
 }) {
   return (
-    <FieldShell label={label} error={error} hint={hint}>
+    <FieldShell label={label} error={error} hint={hint} tooltip={tooltip}>
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -120,15 +147,18 @@ export function CheckboxField({
   label,
   value,
   onChange,
+  tooltip,
 }: {
   label: string;
   value: boolean;
   onChange: (value: boolean) => void;
+  tooltip?: string;
 }) {
   return (
     <label className="admin-checkbox">
       <input type="checkbox" checked={value} onChange={(event) => onChange(event.target.checked)} />
       <span>{label}</span>
+      {tooltip ? <FieldTooltip text={tooltip} /> : null}
     </label>
   );
 }
@@ -139,12 +169,13 @@ export function TagsField({
   onChange,
   hint = "Separadas por comas",
   error,
+  tooltip,
 }: BaseFieldProps & {
   value: string[];
   onChange: (value: string[]) => void;
 }) {
   return (
-    <FieldShell label={label} error={error} hint={hint}>
+    <FieldShell label={label} error={error} hint={hint} tooltip={tooltip}>
       <input
         type="text"
         value={value.join(", ")}
@@ -168,13 +199,14 @@ export function DateTimeField({
   value,
   onChange,
   hint,
+  tooltip,
 }: BaseFieldProps & {
   value: string | null;
   onChange: (value: string | null) => void;
 }) {
   const localValue = value ? value.slice(0, 16) : "";
   return (
-    <FieldShell label={label} hint={hint}>
+    <FieldShell label={label} hint={hint} tooltip={tooltip}>
       <input
         type="datetime-local"
         value={localValue}

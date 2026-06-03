@@ -14,6 +14,10 @@ export const fallbackSiteData: SiteData = {
     links: [],
     highlights: [],
   },
+  visualSettings: {
+    sectionOrbitDurationSeconds: 34,
+    momentaryOrbitDurationSeconds: 18,
+  },
   sections: [],
   sectionItems: [],
   momentaryTabs: [],
