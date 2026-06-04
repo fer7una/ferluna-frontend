@@ -13,6 +13,8 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type FocusEvent as ReactFocusEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -34,6 +36,7 @@ import {
   useOrbitPointerHover,
   type LayoutMode,
 } from "./orbitHooks";
+import { parseDescriptionBlocks, parseMarkdownInline, type MarkdownInline } from "./descriptionText";
 
 type CarouselAction = {
   label: string;
@@ -295,7 +298,7 @@ export function MomentaryTabs({
   );
 
   return (
-    <aside ref={tabsRef} className="momentary-tabs" aria-label="Pestanas momentaneas">
+    <aside ref={tabsRef} className="momentary-tabs" aria-label="pestañas momentáneas">
       {tabs.map((item, index) => {
         const isActive = activeMoment === item.id;
 
@@ -344,16 +347,20 @@ export function MomentaryTabs({
 
 // Full-screen scrollable panel that holds the active section's content.
 export function SectionPanel({
+  activeSectionCardId,
   section,
   moment,
   momentConfig,
+  onOpenSectionCard,
   open,
   siteData,
   sections,
 }: {
+  activeSectionCardId: string | null;
   section: SectionId | null;
   moment: string | null;
   momentConfig: MomentaryTab | null;
+  onOpenSectionCard: (cardId: string) => void;
   open: boolean;
   siteData: SiteData;
   sections: SiteSection[];
@@ -364,7 +371,12 @@ export function SectionPanel({
     <section className={`section-panel ${open ? "is-open" : ""}`} aria-hidden={!open}>
       <div className="section-panel-scroll">
         {section && sectionConfig ? (
-          <SectionContent section={sectionConfig} siteData={siteData} />
+          <SectionContent
+            activeCardId={activeSectionCardId}
+            onOpenCard={onOpenSectionCard}
+            section={sectionConfig}
+            siteData={siteData}
+          />
         ) : moment && momentConfig ? (
           <MomentContent moment={momentConfig} siteData={siteData} />
         ) : null}
@@ -383,7 +395,7 @@ function MomentContent({ moment, siteData }: { moment: MomentaryTab; siteData: S
   return (
     <StandardSectionView
       section={moment.id}
-      eyebrow="PestaÃ±a momentÃ¡nea"
+      eyebrow="Pestaña momentánea"
       title={moment.label}
       description={`Contenido de ${moment.label}.`}
       iconKey={moment.iconKey}
@@ -398,9 +410,13 @@ function MomentContent({ moment, siteData }: { moment: MomentaryTab; siteData: S
 }
 
 function SectionContent({
+  activeCardId,
+  onOpenCard,
   section,
   siteData,
 }: {
+  activeCardId: string | null;
+  onOpenCard: (cardId: string) => void;
   section: SiteSection;
   siteData: SiteData;
 }) {
@@ -413,7 +429,9 @@ function SectionContent({
       iconKey={section.iconKey}
     >
       <SectionBody
+        activeCardId={activeCardId}
         activeSection={section.id}
+        onOpenCard={onOpenCard}
         siteData={siteData}
       />
     </StandardSectionView>
@@ -444,7 +462,7 @@ function StandardSectionView({
         </span>
         <div className="standard-section-heading">
           <h2>{title}</h2>
-          <p>{description}</p>
+          <RichDescription text={description} />
         </div>
       </header>
 
@@ -454,10 +472,14 @@ function StandardSectionView({
 }
 
 function SectionBody({
+  activeCardId,
   activeSection,
+  onOpenCard,
   siteData,
 }: {
+  activeCardId: string | null;
   activeSection: SectionId;
+  onOpenCard: (cardId: string) => void;
   siteData: SiteData;
 }) {
   const sectionItems = sortByOrder(
@@ -470,10 +492,27 @@ function SectionBody({
     return <EmptySectionState label={activeSection} />;
   }
 
-  return <GenericSectionItems ariaLabel={activeSection} items={sectionItems} />;
+  return (
+    <GenericSectionItems
+      activeCardId={activeCardId}
+      ariaLabel={activeSection}
+      items={sectionItems}
+      onOpenCard={onOpenCard}
+    />
+  );
 }
 
-function GenericSectionItems({ ariaLabel, items }: { ariaLabel: string; items: ContentItem[] }) {
+function GenericSectionItems({
+  activeCardId,
+  ariaLabel,
+  items,
+  onOpenCard,
+}: {
+  activeCardId?: string | null;
+  ariaLabel: string;
+  items: ContentItem[];
+  onOpenCard?: (cardId: string) => void;
+}) {
   const cards: CarouselCard[] = items.map((item) => ({
     id: item.id,
     kicker: normalizeKicker(item),
@@ -485,13 +524,21 @@ function GenericSectionItems({ ariaLabel, items }: { ariaLabel: string; items: C
     icon: <IconByKey iconKey={item.iconKey} size={20} />,
   }));
 
+  if (activeCardId && cards.some((card) => card.id === activeCardId)) {
+    return <SectionCarousel ariaLabel={ariaLabel} cards={cards} initialCardId={activeCardId} />;
+  }
+
+  if (onOpenCard) {
+    return <SectionCardOverview ariaLabel={ariaLabel} cards={cards} onOpenCard={onOpenCard} />;
+  }
+
   return <SectionCarousel ariaLabel={ariaLabel} cards={cards} />;
 }
 
 function EmptySectionState({ label }: { label: string }) {
   return (
     <div className="section-empty-state" role="status">
-      <p>TodavÃ­a no hay contenido publicado en {label}.</p>
+      <p>Todavía no hay contenido publicado en {label}.</p>
     </div>
   );
 }
@@ -507,14 +554,135 @@ function isIsoDate(value: string) {
   return !Number.isNaN(Date.parse(value));
 }
 
-function SectionCarousel({ ariaLabel, cards }: { ariaLabel: string; cards: CarouselCard[] }) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const count = cards.length;
+function SectionCardOverview({
+  ariaLabel,
+  cards,
+  onOpenCard,
+}: {
+  ariaLabel: string;
+  cards: CarouselCard[];
+  onOpenCard: (cardId: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shadows, setShadows] = useState({ down: false, up: false });
 
   useEffect(() => {
-    setActiveIndex(0);
-  }, [ariaLabel]);
+    const el = ref.current;
+    if (!el) {
+      return;
+    }
+
+    let frame = 0;
+    const timers: number[] = [];
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const tolerance = 2;
+        const hasOverflow = el.scrollHeight - el.clientHeight > tolerance;
+        const next = {
+          down:
+            hasOverflow &&
+            el.scrollTop + el.clientHeight < el.scrollHeight - tolerance,
+          up: hasOverflow && el.scrollTop > tolerance,
+        };
+
+        setShadows((current) =>
+          current.up === next.up && current.down === next.down ? current : next,
+        );
+      });
+    };
+
+    measure();
+    timers.push(window.setTimeout(measure, 80));
+    timers.push(window.setTimeout(measure, SECTION_EXIT_MS + 80));
+
+    el.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(el);
+    Array.from(el.children).forEach((child) => observer?.observe(child));
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      el.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
+    };
+  }, [ariaLabel, cards.length]);
+
+  const onCardKeyDown = (
+    event: ReactKeyboardEvent<HTMLElement>,
+    cardId: string,
+  ) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    onOpenCard(cardId);
+  };
+
+  const className = [
+    "section-card-overview-scroll",
+    shadows.up ? "can-scroll-up" : "",
+    shadows.down ? "can-scroll-down" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <section className="section-card-overview" aria-label={`${ariaLabel}: vista general`}>
+      <div ref={ref} className={className}>
+        {cards.map((card) => (
+          <article
+            className="section-overview-card"
+            key={card.id}
+            onClick={() => onOpenCard(card.id)}
+            onKeyDown={(event) => onCardKeyDown(event, card.id)}
+            role="button"
+            tabIndex={0}
+            aria-label={`Abrir ${card.title}`}
+          >
+            <p className="section-overview-card-kicker">{card.kicker}</p>
+            <h3>{card.title}</h3>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SectionCarousel({
+  ariaLabel,
+  cards,
+  initialCardId,
+}: {
+  ariaLabel: string;
+  cards: CarouselCard[];
+  initialCardId?: string | null;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [hoverPaused, setHoverPaused] = useState(false);
+  const [focusPaused, setFocusPaused] = useState(false);
+  const count = cards.length;
+  const cardIds = cards.map((card) => card.id).join("\0");
+  const paused = hoverPaused || focusPaused;
+
+  const resumeWhenFocusLeaves = (event: ReactFocusEvent<HTMLElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      return;
+    }
+    setFocusPaused(false);
+  };
+
+  useEffect(() => {
+    const nextIndex = initialCardId
+      ? cards.findIndex((card) => card.id === initialCardId)
+      : -1;
+    setActiveIndex(nextIndex >= 0 ? nextIndex : 0);
+  }, [ariaLabel, cardIds, initialCardId]);
 
   useEffect(() => {
     setActiveIndex((current) => (count === 0 ? 0 : Math.min(current, count - 1)));
@@ -598,17 +766,17 @@ function SectionCarousel({ ariaLabel, cards }: { ariaLabel: string; cards: Carou
               }
               tabIndex={isActive ? 0 : -1}
               aria-hidden={!isActive}
-              onFocus={() => setPaused(true)}
-              onBlur={() => setPaused(false)}
-              onMouseEnter={() => setPaused(true)}
-              onMouseLeave={() => setPaused(false)}
+              onFocus={() => setFocusPaused(true)}
+              onBlur={resumeWhenFocusLeaves}
+              onMouseEnter={() => setHoverPaused(true)}
+              onMouseLeave={() => setHoverPaused(false)}
             >
               <div className="carousel-card-main">
                 <div className="carousel-card-icon">{card.icon}</div>
                 <p className="carousel-card-kicker">{card.kicker}</p>
                 <h3>{card.title}</h3>
                 {card.meta ? <p className="carousel-card-meta">{card.meta}</p> : null}
-                <p className="carousel-card-description">{card.description}</p>
+                <ScrollableDescription text={card.description} />
                 {card.tags && card.tags.length > 0 ? (
                   <div className="carousel-chip-list" aria-label="Etiquetas">
                     {card.tags.map((tag) => (
@@ -635,7 +803,14 @@ function SectionCarousel({ ariaLabel, cards }: { ariaLabel: string; cards: Carou
         })}
       </div>
 
-      <div className="carousel-controls" aria-label={`Controles de ${ariaLabel}`}>
+      <div
+        className="carousel-controls"
+        aria-label={`Controles de ${ariaLabel}`}
+        onFocus={() => setFocusPaused(true)}
+        onBlur={resumeWhenFocusLeaves}
+        onMouseEnter={() => setHoverPaused(true)}
+        onMouseLeave={() => setHoverPaused(false)}
+      >
         <button type="button" onClick={previous} aria-label="Tarjeta anterior" title="Anterior">
           <ChevronLeft size={20} aria-hidden="true" />
         </button>
@@ -672,6 +847,132 @@ function getCarouselOffset(index: number, activeIndex: number, count: number) {
   }
 
   return raw;
+}
+
+function RichDescription({ text, className }: { text: string; className?: string }) {
+  const blocks = useMemo(() => parseDescriptionBlocks(text), [text]);
+  const classes = ["rich-description", className].filter(Boolean).join(" ");
+
+  if (blocks.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={classes}>
+      {blocks.map((block, index) => {
+        if (block.type === "paragraph") {
+          return <p key={index}>{renderMarkdownInline(block.text)}</p>;
+        }
+
+        const ListTag = block.ordered ? "ol" : "ul";
+        return (
+          <ListTag key={index}>
+            {block.items.map((item, itemIndex) => (
+              <li key={`${index}-${itemIndex}`}>{renderMarkdownInline(item)}</li>
+            ))}
+          </ListTag>
+        );
+      })}
+    </div>
+  );
+}
+
+function renderMarkdownInline(text: string): ReactNode[] {
+  return parseMarkdownInline(text).map((node, index) => renderMarkdownNode(node, index));
+}
+
+function renderMarkdownNode(node: MarkdownInline, index: number): ReactNode {
+  switch (node.type) {
+    case "strong":
+      return <strong key={index}>{node.text}</strong>;
+    case "emphasis":
+      return <em key={index}>{node.text}</em>;
+    case "code":
+      return <code key={index}>{node.text}</code>;
+    case "link":
+      return (
+        <a key={index} href={node.href} {...externalLinkProps(node.href)}>
+          {node.text}
+        </a>
+      );
+    case "text":
+    default:
+      return node.text;
+  }
+}
+
+// The card description scrolls on its own so long copy never grows the card.
+// Overflow is measured imperatively (same approach as the orb-tab scroll
+// shadows) so a shaded edge only appears when content is actually clipped
+// above/below. Because the shadow and the `overflow-y: auto` scrollbar are both
+// driven by the same overflow, they always appear together — never one alone.
+function ScrollableDescription({ text }: { text: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shadows, setShadows] = useState({ down: false, up: false });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) {
+      return;
+    }
+
+    let frame = 0;
+    const timers: number[] = [];
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const tolerance = 2;
+        const hasOverflow = el.scrollHeight - el.clientHeight > tolerance;
+        const next = {
+          down:
+            hasOverflow &&
+            el.scrollTop + el.clientHeight < el.scrollHeight - tolerance,
+          up: hasOverflow && el.scrollTop > tolerance,
+        };
+        setShadows((current) =>
+          current.up === next.up && current.down === next.down ? current : next,
+        );
+      });
+    };
+
+    measure();
+    // Re-measure once layout/fonts settle and again after the panel finishes
+    // opening, since the card has no stable size before then.
+    timers.push(window.setTimeout(measure, 80));
+    timers.push(window.setTimeout(measure, SECTION_EXIT_MS + 80));
+
+    el.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(el);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      el.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
+    };
+  }, [text]);
+
+  if (text.trim().length === 0) {
+    return null;
+  }
+
+  const className = [
+    "carousel-card-description",
+    shadows.up ? "can-scroll-up" : "",
+    shadows.down ? "can-scroll-down" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div ref={ref} className={className}>
+      <RichDescription text={text} />
+    </div>
+  );
 }
 
 export function Footer({ links }: { links: ProfileLink[] }) {

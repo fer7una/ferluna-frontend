@@ -74,6 +74,10 @@ function App() {
   // and title keep their content while the close transition plays out.
   const [displayedSection, setDisplayedSection] = useState<SectionId | null>(section);
   const [displayedMoment, setDisplayedMoment] = useState<string | null>(activeMoment);
+  const [activeSectionCard, setActiveSectionCard] = useState<{
+    cardId: string;
+    section: SectionId;
+  } | null>(null);
   const orbRailRef = useRef<HTMLDivElement>(null);
   const orbTabsRef = useRef<HTMLDivElement>(null);
   const orbPhase = useOrbPhase(mode);
@@ -180,6 +184,10 @@ function App() {
   }, [isAdmin, section, sectionConfig]);
 
   useEffect(() => {
+    setActiveSectionCard(null);
+  }, [section]);
+
+  useEffect(() => {
     if (activeMoment) {
       setDisplayedMoment(activeMoment);
       return;
@@ -208,11 +216,11 @@ function App() {
     }
 
     if (momentConfig) {
-      document.title = `${momentConfig.label} Â· Fernando Luna`;
+      document.title = `${momentConfig.label} · Fernando Luna`;
       return;
     }
 
-    document.title = isAdmin ? "Administracion Â· Fernando Luna" : "Fernando Luna";
+    document.title = isAdmin ? "Administración · Fernando Luna" : "Fernando Luna";
   }, [isAdmin, isAdminLogin, section, sectionConfig, momentConfig]);
 
   useEffect(() => {
@@ -233,7 +241,17 @@ function App() {
 
   const goToSection = (next: SectionId) => {
     const nextSection = visibleSections.find((item) => item.id === next);
-    if (nextSection) navigate(`/${nextSection.route}`);
+    if (!nextSection) {
+      return;
+    }
+
+    if (section === next) {
+      setActiveSectionCard(null);
+      return;
+    }
+
+    setActiveSectionCard(null);
+    navigate(`/${nextSection.route}`);
   };
   const goToMoment = (next: string) => {
     const nextMoment = visibleMomentaryTabs.find((item) => item.id === next);
@@ -274,6 +292,8 @@ function App() {
   ]
     .filter(Boolean)
     .join(" ");
+  const activeSectionCardId =
+    section && activeSectionCard?.section === section ? activeSectionCard.cardId : null;
 
   return (
     // data-orb-phase exposes the UI orbit state independently from the route.
@@ -348,6 +368,12 @@ function App() {
         moment={displayedMoment}
         momentConfig={visibleMomentaryTabs.find((item) => item.id === displayedMoment) ?? null}
         open={mode === "section"}
+        activeSectionCardId={activeSectionCardId}
+        onOpenSectionCard={(cardId) => {
+          if (section) {
+            setActiveSectionCard({ cardId, section });
+          }
+        }}
         siteData={siteData}
         sections={visibleSections}
       />

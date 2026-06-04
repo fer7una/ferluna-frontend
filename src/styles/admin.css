@@ -284,15 +284,48 @@ button.admin-danger:hover {
 .admin-field-label {
   color: var(--ink);
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .admin-field-label-row {
   align-items: center;
+  container-type: inline-size;
   display: inline-flex;
   gap: 6px;
   min-width: 0;
   position: relative;
-  width: fit-content;
+  width: 100%;
+}
+
+.admin-field-dirty-mark {
+  align-items: center;
+  color: #b45309;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  gap: 4px;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.admin-field-dirty-mark svg {
+  color: #ea580c;
+  flex: 0 0 auto;
+}
+
+.admin-field-dirty-text {
+  display: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container (min-width: 240px) {
+  .admin-field-dirty-text {
+    display: inline;
+  }
 }
 
 .admin-field-tooltip {
@@ -368,9 +401,105 @@ button.admin-danger:hover {
   resize: vertical;
 }
 
+.admin-tags-editor {
+  align-items: center;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: text;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 42px;
+  padding: 6px;
+  width: 100%;
+}
+
+.admin-tags-editor:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(50, 120, 200, 0.22);
+}
+
+.admin-tags-list {
+  display: contents;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-tag-pill {
+  align-items: center;
+  background: rgba(32, 178, 170, 0.14);
+  border: 1px solid rgba(32, 178, 170, 0.42);
+  border-radius: 999px;
+  color: #0f766e;
+  cursor: grab;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 600;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 3px 4px 3px 10px;
+}
+
+.admin-tag-pill.is-dragging {
+  cursor: grabbing;
+  opacity: 0.48;
+}
+
+.admin-tag-pill.is-drag-over {
+  background: rgba(50, 120, 200, 0.12);
+  border-color: rgba(50, 120, 200, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(50, 120, 200, 0.18);
+}
+
+.admin-tag-pill span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-tag-pill button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 999px;
+  color: #0f766e;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 22px;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.18s ease, color 0.18s ease;
+  width: 22px;
+}
+
+.admin-tag-pill button:hover,
+.admin-tag-pill button:focus-visible {
+  background: rgba(255, 127, 102, 0.18);
+  color: #c2410c;
+}
+
+.admin-tags-editor input {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  flex: 1 1 120px;
+  min-width: 120px;
+  padding: 4px 6px;
+  width: auto;
+}
+
+.admin-tags-editor input:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
 .admin-field.has-error input,
 .admin-field.has-error textarea,
-.admin-field.has-error select {
+.admin-field.has-error select,
+.admin-field.has-error .admin-tags-editor {
   border-color: var(--coral);
 }
 
@@ -386,6 +515,7 @@ button.admin-danger:hover {
 
 .admin-checkbox {
   align-items: center;
+  container-type: inline-size;
   color: var(--ink);
   display: flex;
   font-size: 0.85rem;
