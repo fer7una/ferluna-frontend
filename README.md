@@ -20,3 +20,8 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 - `npm run dev`
 - `npm run build`
 - `npm run preview`
+
+## Extender el portal público
+
+Consulta `docs/public-portal-extension.md` antes de añadir secciones, pestañas
+momentáneas, variantes de card o animaciones nuevas.

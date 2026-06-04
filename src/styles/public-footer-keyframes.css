@@ -1,0 +1,68 @@
+﻿.footer {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.92rem;
+  font-weight: 700;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 26px clamp(18px, 4vw, 36px) 38px;
+}
+
+.footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.footer a {
+  transition: color 160ms ease;
+}
+
+.footer a:hover {
+  color: var(--ink);
+}
+
+@keyframes rotate-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes tab-orbit {
+  from {
+    transform: rotate(var(--orbit-angle));
+  }
+
+  to {
+    transform: rotate(calc(var(--orbit-angle) + 360deg));
+  }
+}
+
+@keyframes tab-counter-orbit {
+  from {
+    transform: rotate(var(--orbit-counter-angle));
+  }
+
+  to {
+    transform: rotate(calc(var(--orbit-counter-angle) - 360deg));
+  }
+}
+
+@keyframes tab-label-marquee {
+  0%,
+  18% {
+    transform: translateX(0);
+  }
+
+  50%,
+  68% {
+    transform: translateX(calc(-1 * var(--tab-label-shift)));
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+

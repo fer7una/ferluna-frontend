@@ -1,0 +1,253 @@
+﻿.cv-layout,
+.personal-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  margin: 0 auto;
+  max-width: 1180px;
+  min-width: 0;
+}
+
+.cv-summary,
+.education-panel,
+.focus-panel {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  padding: clamp(22px, 3vw, 32px);
+}
+
+.cv-layout > *,
+.personal-layout > *,
+.project-grid > *,
+.docs-grid > *,
+.timeline > *,
+.post-list > * {
+  min-width: 0;
+}
+
+.cv-summary p,
+.education-panel p,
+.focus-panel p,
+.timeline-item p,
+.project-card p,
+.post-item p,
+.doc-card p {
+  color: var(--muted);
+  line-height: 1.68;
+}
+
+.cv-summary {
+  min-height: 100%;
+}
+
+.cv-summary p {
+  color: #2d5875;
+  font-size: 1.12rem;
+  margin-bottom: 24px;
+}
+
+.cv-summary p,
+.education-panel p,
+.focus-panel p,
+.timeline-item p,
+.project-card p,
+.post-item p,
+.doc-card p,
+.timeline-item h3,
+.project-card h3,
+.post-item h3,
+.doc-card h3,
+.education-panel h3,
+.focus-panel h3,
+.project-card a,
+.post-item a,
+.doc-card a,
+.skill-cloud span,
+.stack-list span {
+  overflow-wrap: anywhere;
+}
+
+.skill-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.skill-cloud span,
+.stack-list span {
+  background: #f1fbf8;
+  border: 1px solid rgba(32, 178, 170, 0.2);
+  border-radius: 999px;
+  color: #216968;
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 8px 11px;
+}
+
+.timeline {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.timeline-item {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px;
+  position: relative;
+}
+
+.timeline-item::before {
+  background: linear-gradient(180deg, var(--teal), var(--coral));
+  border-radius: 99px;
+  content: "";
+  height: calc(100% - 36px);
+  left: 0;
+  position: absolute;
+  top: 18px;
+  width: 4px;
+}
+
+.timeline-item time,
+.card-topline,
+.post-item time {
+  color: #2f7f7a;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.timeline-item h3,
+.project-card h3,
+.post-item h3,
+.doc-card h3,
+.education-panel h3,
+.focus-panel h3 {
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.company {
+  color: #2d5875;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.education-panel {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-column: 1 / -1;
+  grid-template-columns: auto 1fr;
+}
+
+.project-grid,
+.docs-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 auto;
+  max-width: 1180px;
+}
+
+.project-card,
+.doc-card,
+.post-item {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 18px 48px rgba(33, 93, 120, 0.1);
+  display: flex;
+  flex-direction: column;
+  min-height: 270px;
+  padding: 22px;
+  transition: transform 180ms ease, box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.project-card:hover,
+.doc-card:hover,
+.post-item:hover {
+  border-color: rgba(32, 178, 170, 0.38);
+  box-shadow: 0 24px 60px rgba(33, 93, 120, 0.16);
+  transform: translateY(-4px);
+}
+
+.card-topline {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  min-width: 0;
+}
+
+.card-topline span,
+.card-topline strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.card-topline strong {
+  background: #fff2d1;
+  border-radius: 999px;
+  color: #7a5610;
+  padding: 6px 10px;
+}
+
+.stack-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: auto 0 20px;
+  min-width: 0;
+}
+
+.project-card a,
+.post-item a,
+.doc-card a {
+  align-items: center;
+  color: #1f6f75;
+  display: inline-flex;
+  font-weight: 850;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.personal-layout {
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+}
+
+.post-list {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.post-item {
+  min-height: 220px;
+}
+
+.focus-panel {
+  align-self: start;
+}
+
+.focus-panel strong {
+  color: var(--ink);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.docs-grid .doc-card {
+  min-height: 235px;
+}
+
+.doc-card svg {
+  color: var(--coral);
+  margin-bottom: 18px;
+}
+

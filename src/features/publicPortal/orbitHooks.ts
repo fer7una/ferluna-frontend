@@ -1,15 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import {
+  ORBIT_GLIDE_MS,
+  ORBIT_HOVER_PLAYBACK_RATE,
+  type LayoutMode,
+  type OrbPhase,
+} from "./constants";
 
-export type LayoutMode = "hub" | "section";
-export type OrbPhase =
-  | "hub"
-  | "gliding-to-section"
-  | "rail"
-  | "preparing-hub-glide"
-  | "gliding-to-hub";
-
-export const ORBIT_GLIDE_MS = 860;
-export const ORBIT_HOVER_PLAYBACK_RATE = 0.5;
+export type { LayoutMode, OrbPhase };
+export { ORBIT_GLIDE_MS, ORBIT_HOVER_PLAYBACK_RATE };
 
 export function setOrbitPlaybackRate(
   container: HTMLElement | null,

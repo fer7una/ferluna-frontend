@@ -1,0 +1,436 @@
+﻿:root {
+  color: #17324d;
+  background: #f7fbff;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --ink: #17324d;
+  --muted: #5c7184;
+  --line: rgba(23, 50, 77, 0.14);
+  --surface: rgba(255, 255, 255, 0.76);
+  --surface-strong: rgba(255, 255, 255, 0.94);
+  --teal: #20b2aa;
+  --blue: #3278c8;
+  --coral: #ff7f66;
+  --gold: #ffc857;
+  --mint: #caefe4;
+  --shadow: 0 24px 70px rgba(33, 93, 120, 0.16);
+  /* Orb glide: the UI hub reads this center point. SunEffect stays fullscreen
+     so its WebGL canvas keeps stable 100vw/100vh coordinates. */
+  --orb-corner-inset: 132px;
+  --orb-corner-scale: 0.34;
+  --orb-center-x: 50vw;
+  --orb-center-y: 50dvh;
+  --orb-scale: 1;
+  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1);
+  --orbit-glide-duration: 860ms;
+  /* Section tabs use the first orbit; momentary tabs use the second orbit. */
+  --tab-hub-radius: min(24vmin, 224px);
+  --tab-hub-ring-size: min(48vmin, 448px);
+  --tab-orbit-duration: 34s;
+  --tab-orbit-radius: var(--tab-hub-radius);
+  --moment-tab-hub-radius: min(38vmin, 342px);
+  --moment-tab-ring-size: min(76vmin, 684px);
+  --moment-tab-orbit-duration: 18s;
+  --tab-corner-x: 132px;
+  --tab-corner-base: 226px;
+  --tab-corner-step: 60px;
+  /* Corner column stacking for momentary tabs: they sit ABOVE the inner
+     section tabs with their compact yellow style preserved. The gap is sized
+     so the bottom of the lowest moment clears the top of the highest section
+     tab without overlap. */
+  --moment-tab-corner-gap: 56px;
+  --moment-tab-corner-step: 50px;
+  --moment-tab-corner-count: 4;
+  --section-tab-expanded-width: 142px;
+  --moment-tab-expanded-width: 158px;
+  --tab-icon-size: 54px;
+  --moment-tab-icon-size: 46px;
+  --tab-label-max-width: 120px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  min-width: 320px;
+  scroll-behavior: smooth;
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  overflow: hidden;
+  background: linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(220, 247, 245, 0.58)
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 243, 210, 0.45)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(23, 50, 77, 0.045) 0 1px,
+      transparent 1px 86px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(23, 50, 77, 0.035) 0 1px,
+      transparent 1px 86px
+    );
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a[href],
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(255, 127, 102, 0.48);
+  outline-offset: 4px;
+}
+
+.sr-only {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.app-shell {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-shell[data-orb-phase="gliding-to-section"],
+.app-shell[data-orb-phase="rail"],
+.app-shell[data-orb-phase="preparing-hub-glide"] {
+  --orb-center-x: calc(100vw - var(--orb-corner-x));
+  --orb-center-y: calc(100dvh - var(--orb-corner-y));
+  --orb-scale: var(--orb-corner-scale);
+}
+
+.viewport-sun-field {
+  aspect-ratio: auto;
+  height: 100vh;
+  height: 100dvh;
+  inset: 0;
+  min-height: 0;
+  position: fixed;
+  width: 100vw;
+  z-index: 4;
+}
+
+.app-shell[data-orb-phase="gliding-to-section"] .viewport-sun-field,
+.app-shell[data-orb-phase="rail"] .viewport-sun-field,
+.app-shell[data-orb-phase="preparing-hub-glide"] .viewport-sun-field {
+  height: 100vh;
+  height: 100dvh;
+  inset: 0;
+  pointer-events: none !important;
+  width: 100vw;
+  z-index: 6;
+}
+
+.app-shell[data-orb-phase="gliding-to-section"] .viewport-sun-field *,
+.app-shell[data-orb-phase="rail"] .viewport-sun-field *,
+.app-shell[data-orb-phase="preparing-hub-glide"] .viewport-sun-field * {
+  pointer-events: none !important;
+}
+
+.topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 24px clamp(18px, 4vw, 36px) 0;
+  left: 50%;
+  position: fixed;
+  top: 0;
+  transform: translateX(-50%);
+  width: min(100%, 1180px);
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.brand-mark {
+  align-items: center;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.brand-mark img {
+  border-radius: 50%;
+  box-shadow: 0 10px 26px rgba(32, 178, 170, 0.2);
+  height: 38px;
+  width: 38px;
+}
+
+.top-links {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.top-links a {
+  align-items: center;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 12px 28px rgba(41, 94, 128, 0.08);
+  display: inline-flex;
+  height: 42px;
+  justify-content: center;
+  transition: transform 160ms ease, border-color 160ms ease,
+    background 160ms ease;
+  width: 42px;
+}
+
+.top-links a:hover {
+  background: #ffffff;
+  border-color: rgba(32, 178, 170, 0.48);
+  transform: translateY(-2px);
+}
+
+.eyebrow {
+  align-items: center;
+  color: #226b72;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 8px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  color: var(--ink);
+  font-size: clamp(3rem, 7vw, 6.5rem);
+  letter-spacing: 0;
+  line-height: 0.9;
+  margin-bottom: 18px;
+  max-width: 9ch;
+}
+
+.role {
+  color: #204b6d;
+  font-size: clamp(1.15rem, 2vw, 1.55rem);
+  font-weight: 750;
+  line-height: 1.35;
+  margin-bottom: 12px;
+  max-width: 640px;
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: clamp(1rem, 1.4vw, 1.12rem);
+  line-height: 1.75;
+  margin-bottom: 28px;
+  max-width: 620px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 34px;
+}
+
+.primary-action,
+.secondary-action {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 10px;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 20px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.primary-action {
+  background: #17324d;
+  color: #ffffff;
+  box-shadow: 0 16px 36px rgba(23, 50, 77, 0.24);
+}
+
+.secondary-action {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.primary-action:hover,
+.secondary-action:hover {
+  transform: translateY(-2px);
+}
+
+.signal-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  max-width: 680px;
+}
+
+.signal-strip div {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(33, 93, 120, 0.09);
+  min-height: 112px;
+  padding: 18px;
+}
+
+.signal-strip dt {
+  color: #2b7772;
+  font-size: 0.75rem;
+  font-weight: 850;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.signal-strip dd {
+  color: var(--ink);
+  font-weight: 750;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.orbit-stage {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  height: min(78vmin, 720px);
+  left: 0;
+  isolation: isolate;
+  margin: 0;
+  place-items: center;
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  translate: var(--orb-center-x) var(--orb-center-y);
+  transform: translate3d(-50%, -50%, 0) scale(var(--orb-scale));
+  transform-origin: 50% 50%;
+  transition: translate var(--orbit-glide-duration) var(--ease-glide),
+    transform var(--orbit-glide-duration) var(--ease-glide);
+  width: min(78vmin, 720px);
+  will-change: translate, transform;
+  z-index: 6;
+}
+
+.orbit-stage::before {
+  background: conic-gradient(
+    from 120deg,
+    rgba(255, 200, 87, 0.28),
+    rgba(32, 178, 170, 0.34),
+    rgba(50, 120, 200, 0.24),
+    rgba(255, 127, 102, 0.34),
+    rgba(255, 200, 87, 0.28)
+  );
+  border-radius: 50%;
+  content: "";
+  inset: 8%;
+  opacity: 0.72;
+  position: absolute;
+  filter: blur(24px);
+  transition: opacity 320ms ease;
+  z-index: -2;
+}
+
+.orbit-stage.is-corner::before,
+.orbit-stage.is-corner .orbit-ring {
+  opacity: 0;
+}
+
+.orbit-ring {
+  border: 1px solid rgba(32, 111, 128, 0.22);
+  border-radius: 50%;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 320ms ease;
+  z-index: 2;
+}
+
+.orbit-ring-a {
+  animation: rotate-slow 24s linear infinite reverse;
+  border-color: rgba(255, 127, 102, 0.18);
+  height: var(--moment-tab-ring-size);
+  width: var(--moment-tab-ring-size);
+}
+
+.orbit-ring-b {
+  animation: rotate-slow 32s linear infinite;
+  height: var(--tab-hub-ring-size);
+  transform: rotate(18deg);
+  width: var(--tab-hub-ring-size);
+}
+
+.energy-orb-wrap {
+  aspect-ratio: 1;
+  isolation: isolate;
+  margin-inline: auto;
+  max-width: 360px;
+  position: relative;
+  pointer-events: auto;
+  width: 50%;
+  z-index: 4;
+}
+
+.energy-orb {
+  aspect-ratio: 1;
+  background: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  display: block;
+  height: 100%;
+  padding: 0;
+  position: relative;
+  transition: filter 620ms var(--ease-glide), transform 620ms var(--ease-glide);
+  width: 100%;
+  z-index: 2;
+}
+
