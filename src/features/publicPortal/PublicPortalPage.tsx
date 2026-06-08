@@ -163,6 +163,9 @@ export function PublicPortalPage() {
   const orbitDurationStyle = {
     "--tab-orbit-duration": `${siteData.visualSettings.sectionOrbitDurationSeconds}s`,
     "--moment-tab-orbit-duration": `${siteData.visualSettings.momentaryOrbitDurationSeconds}s`,
+    // Drives the bottom-anchored rail stack: the moment-tab block sits just above
+    // the topmost section, so its glide offset needs the live section count.
+    "--section-count": visibleSections.length,
   } as CSSProperties;
   const defaultSection = visibleSections[0];
   const activeSectionCardId =

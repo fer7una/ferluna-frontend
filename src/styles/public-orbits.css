@@ -264,15 +264,17 @@
   opacity: 1;
 }
 
-/* Section mode: each wrapper glides to its stacked corner slot (left/top) while
-   the orbital radius collapses to 0. The orbit rotation keeps running the whole
+/* Section mode: each wrapper glides to its stacked corner slot while the orbital
+   radius collapses to 0. The stack is anchored at the bottom: tab-index 0 lands
+   just above the orb and the tower grows upward as sections are added, with no
+   fixed section-count assumption. The orbit rotation keeps running the whole
    time, so the hub orbit is never stopped or reset. */
 .app-shell[data-orb-phase="gliding-to-section"] .section-tab-orbit,
 .app-shell[data-orb-phase="rail"] .section-tab-orbit,
 .app-shell[data-orb-phase="preparing-hub-glide"] .section-tab-orbit {
   translate: calc(100vw - var(--tab-corner-x))
     calc(
-      100dvh - var(--tab-corner-base) - (3 - var(--tab-index)) *
+      100dvh - var(--tab-corner-base) - var(--tab-index) *
         var(--tab-corner-step)
     );
 }
@@ -316,18 +318,21 @@
   transition: max-width 220ms ease, opacity 160ms ease;
 }
 
-/* Section mode: the moment-tab orbit performs the same orbit-to-corner glide
-   as the inner section tabs, then becomes an expanded corner stack. */
+/* Section mode: the moment-tab orbit performs the same orbit-to-corner glide as
+   the inner section tabs, stacking above the section tower. Its base offset
+   tracks the real section count (--section-count) so it sits just above the
+   topmost section regardless of how many sections exist; moment-tab-index 0 is
+   the lowest moment (closest to the sections) and the block grows upward. */
 .app-shell[data-orb-phase="gliding-to-section"] .moment-tab-orbit,
 .app-shell[data-orb-phase="rail"] .moment-tab-orbit,
 .app-shell[data-orb-phase="preparing-hub-glide"] .moment-tab-orbit {
   opacity: 1;
   translate: calc(100vw - var(--tab-corner-x))
     calc(
-      100dvh - var(--tab-corner-base) - 3 * var(--tab-corner-step) -
+      100dvh - var(--tab-corner-base) -
+        max(0px, (var(--section-count, 0) - 1) * var(--tab-corner-step)) -
         var(--moment-tab-corner-gap) -
-        (var(--moment-tab-corner-count) - 1 - var(--moment-tab-index, 0)) *
-        var(--moment-tab-corner-step)
+        var(--moment-tab-index, 0) * var(--moment-tab-corner-step)
     );
 }
 

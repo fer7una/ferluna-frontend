@@ -303,7 +303,10 @@
 .app-shell[data-orb-phase="rail"] .section-tabs {
   align-items: flex-end;
   display: flex;
-  flex-direction: column;
+  /* column-reverse anchors index 0 at the bottom of each group (just above the
+     orb for sections), so the rest position matches the bottom-anchored glide
+     target in public-orbits.css and the tower grows upward with the count. */
+  flex-direction: column-reverse;
   gap: var(--edge-rail-gap);
   pointer-events: none;
   width: 100%;
